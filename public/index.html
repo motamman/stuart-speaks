@@ -4,11 +4,15 @@
   <meta charset="UTF-8">
   <title>Stuart Speaks</title>
   <link rel="manifest" href="/stuart/manifest.webmanifest">
-      
-  <link rel="icon" href="/icons/stuart.png" sizes=32x32" type="image/png">
-      
+  <link rel="icon" href="/icons/stuart.png" sizes="32x32" type="image/png">
   <meta name="theme-color" content="#3367D6">
   <style>
+    body {
+      font-family: sans-serif;
+      padding: 1em;
+      max-width: 600px;
+      margin: auto;
+    }
     .textarea-container {
       position: relative;
       width: 100%;
@@ -17,18 +21,39 @@
       position: absolute;
       bottom: 8px;
       right: 8px;
-      display: none;           /* hidden until ready */
-      padding: 6px 12px;
-      font-size: 0.9rem;
+      display: none;
+      padding: 8px 16px;
+      font-size: 1rem;
       cursor: pointer;
+    }
+    textarea {
+      width: 100%;
+      font-size: 1rem;
+      padding: 8px;
+      box-sizing: border-box;
+    }
+    button {
+      padding: 10px 16px;
+      font-size: 1rem;
+      margin: 4px;
+      cursor: pointer;
+    }
+    #commonPhrases button {
+      margin: 4px 4px 8px 0;
+    }
+    #log div {
+      margin: 8px 0;
     }
   </style>
 </head>
-<body style="font-family:sans-serif;padding:1em;">
+<body>
+  <!-- Logo -->
+  <img src="/icons/stuart.png" alt="Stuart's next stops" style="width:100px;height:auto;">
+  
   <h1>Place text upon Stuart's tongue</h1>
 
   <div class="textarea-container">
-    <textarea id="text" rows="4" style="width:100%;" placeholder="Type something…"></textarea>
+    <textarea id="text" rows="4" placeholder="Type something…"></textarea>
     <button id="installBtn">Install</button>
   </div>
 
@@ -36,7 +61,12 @@
   <button id="speak">Speak</button>
   <audio id="player" controls hidden></audio>
 
+  <h2>Common Phrases</h2>
+  <div id="commonPhrases"></div>
+
+  <h2>Conversation Log</h2>
+  <div id="log"></div>
+
   <script src="/stuart/app.js"></script>
 </body>
 </html>
-

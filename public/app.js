@@ -1,27 +1,26 @@
-// public/app.js
-
 // Elements
-const installBtn = document.getElementById("installBtn");
-const textArea   = document.getElementById("text");
-const btn        = document.getElementById("speak");
-const player     = document.getElementById("player");
+const installBtn      = document.getElementById("installBtn");
+const textArea        = document.getElementById("text");
+const btn             = document.getElementById("speak");
+const player          = document.getElementById("player");
+const phrasesContainer= document.getElementById("commonPhrases");
+const logContainer    = document.getElementById("log");
+const maxLogItems     = 20;
 
 let deferredPrompt;
 
-// 0) Hide install button if already installed / in standalone
-if (window.matchMedia('(display-mode: standalone)').matches ||
-    window.navigator.standalone === true) {
+// Hide install button if already installed / in standalone
+if (window.matchMedia('(display-mode: standalone)').matches || window.navigator.standalone === true) {
   installBtn.style.display = 'none';
 }
 
-// 1) Capture the install prompt event
+// PWA Install Events
 window.addEventListener('beforeinstallprompt', e => {
   e.preventDefault();
   deferredPrompt = e;
   installBtn.style.display = 'block';
 });
 
-// 2) Handle user clicking the install button
 installBtn.addEventListener('click', async () => {
   installBtn.style.display = 'none';
   if (!deferredPrompt) return;
@@ -31,23 +30,43 @@ installBtn.addEventListener('click', async () => {
   deferredPrompt = null;
 });
 
-// 3) Hide install button when the PWA is installed
 window.addEventListener('appinstalled', () => {
   installBtn.style.display = 'none';
   console.log('PWA was installed');
 });
 
-// 4) Register the service worker
+// Service Worker
 if ('serviceWorker' in navigator) {
   window.addEventListener('load', () => {
     navigator.serviceWorker
-             .register('/stuart/sw.js', { scope: '/stuart/' })
-             .then(reg => console.log('SW registered with scope:', reg.scope))
-             .catch(err => console.error('SW registration failed:', err));
+      .register('/stuart/sw.js', { scope: '/stuart/' })
+      .then(reg => console.log('SW registered with scope:', reg.scope))
+      .catch(err => console.error('SW registration failed:', err));
   });
 }
 
-// 5) Shared TTS logic
+// Common Phrases
+const commonPhrases = ["Yes", "No", "Hello", "Who is speaking?", "Thank you", "Goodbye"];
+commonPhrases.forEach(phrase => {
+  const phraseBtn = document.createElement("button");
+  phraseBtn.textContent = phrase;
+  phraseBtn.addEventListener("click", () => {
+    textArea.value = phrase;
+    doSpeak();
+  });
+  phrasesContainer.appendChild(phraseBtn);
+});
+
+// Add Clear Log Button
+const clearLogBtn = document.createElement("button");
+clearLogBtn.textContent = "🗑️ Clear Logs";
+clearLogBtn.style.margin = "8px 0";
+clearLogBtn.addEventListener("click", () => {
+  logContainer.innerHTML = "";
+});
+logContainer.parentNode.insertBefore(clearLogBtn, logContainer);
+
+// Text-to-Speech Logic
 async function doSpeak() {
   const text = textArea.value.trim();
   if (!text) return;
@@ -67,7 +86,9 @@ async function doSpeak() {
     player.hidden = false;
     await player.play();
 
-    // Clear and refocus the textarea
+    addToLog(text, url);
+
+    // Clear and refocus textarea
     textArea.value = "";
     textArea.focus();
 
@@ -78,7 +99,49 @@ async function doSpeak() {
   }
 }
 
-// 6) Wire up UI events
+// Add Items to Log
+function addToLog(text, audioSrc) {
+  const entry = document.createElement("div");
+
+  const playCachedBtn = document.createElement("button");
+  playCachedBtn.textContent = "▶️ Cached";
+  playCachedBtn.addEventListener("click", () => {
+    player.src = audioSrc;
+    player.hidden = false;
+    player.play();
+  });
+
+  const reloadBtn = document.createElement("button");
+  reloadBtn.textContent = "🔄 Reload";
+  reloadBtn.addEventListener("click", async () => {
+    textArea.value = text;
+    await doSpeak();
+  });
+
+  const removeBtn = document.createElement("button");
+  removeBtn.textContent = "❌ Remove";
+  removeBtn.addEventListener("click", () => {
+    logContainer.removeChild(entry);
+  });
+
+  const textSpan = document.createElement("span");
+  textSpan.textContent = ` ${text}`;
+
+  entry.appendChild(playCachedBtn);
+  entry.appendChild(reloadBtn);
+  entry.appendChild(removeBtn);
+  entry.appendChild(textSpan);
+
+  // Add to top of log
+  logContainer.prepend(entry);
+
+  // Limit log entries
+  while (logContainer.children.length > maxLogItems) {
+    logContainer.removeChild(logContainer.lastChild);
+  }
+}
+
+// Event Bindings
 btn.addEventListener("click", doSpeak);
 textArea.addEventListener("keydown", e => {
   if (e.key === "Enter" && !e.shiftKey) {

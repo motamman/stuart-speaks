@@ -1,21 +1,28 @@
 // server.js
 
 const express = require("express");
-const fetch = require("node-fetch");
+const fetch   = require("node-fetch");
+const path    = require("path");
 
 const app = express();
 const PORT = process.env.PORT || 3001;
 
-// Parse JSON bodies
+// Determine base path: in development, serve under /stuart; in production, serve at /
+const DEV_BASE = process.env.NODE_ENV === "production" ? "" : "/stuart";
+
+// Helper to prefix routes with the base path
+const withBase = (route) => DEV_BASE + route;
+
+// Parse JSON bodies for all requests
 app.use(express.json());
 
 // Health‐check endpoint
-app.get("/ping", (req, res) => {
+app.get(withBase("/ping"), (req, res) => {
   res.send("pong");
 });
 
 // TTS proxy endpoint
-app.post("/api/tts", async (req, res) => {
+app.post(withBase("/api/tts"), async (req, res) => {
   console.log("Received /api/tts payload:", req.body);
 
   const text = req.body.text;
@@ -24,18 +31,18 @@ app.post("/api/tts", async (req, res) => {
   }
 
   try {
-		const apiRes = await fetch("https://api.fish.audio/v1/tts", {
-		  method: "POST",
-		  headers: {
-		    "Authorization": `Bearer ${process.env.FISH_API_KEY}`,
-		    "Content-Type": "application/json"
-		  },
-		  body: JSON.stringify({
-		    text: text,
-		    reference_id: process.env.FISH_MODEL_ID     // ← your custom model here
-		  })
-		});
-
+    // Call Fish.Audio TTS REST API
+    const apiRes = await fetch("https://api.fish.audio/v1/tts", {
+      method: "POST",
+      headers: {
+        "Authorization": `Bearer ${process.env.FISH_API_KEY}`,
+        "Content-Type": "application/json"
+      },
+      body: JSON.stringify({
+        text: text,
+        reference_id: process.env.FISH_MODEL_ID
+      })
+    });
 
     if (!apiRes.ok) {
       const errText = await apiRes.text();
@@ -53,10 +60,13 @@ app.post("/api/tts", async (req, res) => {
   }
 });
 
-// Serve files from ./public
-app.use(express.static("public"));
+// Serve static files from ./public, mounted under the base path
+app.use(
+  withBase("/"),
+  express.static(path.join(__dirname, "public"))
+);
 
 // Start server
 app.listen(PORT, () => {
-  console.log(`Server listening on port ${PORT}`);
+  console.log(`Server listening on port ${PORT} (base path: "${DEV_BASE}")`);
 });
