@@ -1,0 +1,42 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="UTF-8">
+  <title>Stuart Speaks</title>
+  <link rel="manifest" href="/stuart/manifest.webmanifest">
+      
+  <link rel="icon" href="/icons/stuart.png" sizes=32x32" type="image/png">
+      
+  <meta name="theme-color" content="#3367D6">
+  <style>
+    .textarea-container {
+      position: relative;
+      width: 100%;
+    }
+    #installBtn {
+      position: absolute;
+      bottom: 8px;
+      right: 8px;
+      display: none;           /* hidden until ready */
+      padding: 6px 12px;
+      font-size: 0.9rem;
+      cursor: pointer;
+    }
+  </style>
+</head>
+<body style="font-family:sans-serif;padding:1em;">
+  <h1>Place text upon Stuart's tongue</h1>
+
+  <div class="textarea-container">
+    <textarea id="text" rows="4" style="width:100%;" placeholder="Type something…"></textarea>
+    <button id="installBtn">Install</button>
+  </div>
+
+  <br>
+  <button id="speak">Speak</button>
+  <audio id="player" controls hidden></audio>
+
+  <script src="/stuart/app.js"></script>
+</body>
+</html>
+
