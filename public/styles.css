@@ -87,5 +87,6 @@ body {
     }
   }
   audio {
-    margin-bottom: 3em; /* Prevent overlap with iOS bottom UI */
+    
+    height: 100px;
   }
