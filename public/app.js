@@ -46,7 +46,7 @@ if ('serviceWorker' in navigator) {
 }
 
 // Common Phrases
-const commonPhrases = ["Yes", "No", "Hello", "Who is speaking?", "Thank you", "Goodbye", "Please", "I love you", "What is your name?", "How are you?", "Can you help me?", "Who will you vote for mayor?"];
+const commonPhrases = ["Yes", "No", "Hello", "Who is speaking?", "FUCK OFF!", "Thank you", "Goodbye", "Please", "I love you", "What is your name?", "How are you?", "Can you help me?", "Who will you vote for mayor?"];
 commonPhrases.forEach(phrase => {
   const phraseBtn = document.createElement("button");
   phraseBtn.textContent = phrase;
@@ -181,7 +181,8 @@ function addToLog(text, audioSrc) {
 
 
 // Event Bindings
-btn.addEventListener("click", doSpeak);
+btn.addEventListener("click", () => doSpeak());
+
 textArea.addEventListener("keydown", e => {
   if (e.key === "Enter" && !e.shiftKey) {
     e.preventDefault();
