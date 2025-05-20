@@ -1,0 +1,89 @@
+body {
+    font-family: sans-serif;
+    padding: 1em;
+    max-width: 600px;
+    background-color: #EAD4A4;
+    margin: auto;
+  }
+  
+  .textarea-container {
+    position: relative;
+    width: 100%;
+  }
+  
+  #installBtn {
+    position: absolute;
+    bottom: 8px;
+    right: 8px;
+    display: none;
+    padding: 8px 16px;
+    font-size: 1rem;
+    cursor: pointer;
+  }
+  
+  textarea {
+    width: 100%;
+    font-size: 1rem;
+    padding: 8px;
+    box-sizing: border-box;
+  }
+  
+  button {
+    padding: 10px 16px;
+    font-size: 1rem;
+    margin: 4px;
+    cursor: pointer;
+  }
+  
+  #commonPhrases button {
+    margin: 4px 4px 8px 0;
+  }
+  
+  /* === Log Entries === */
+  .log-entry {
+    display: flex;
+    align-items: center;
+    flex-wrap: wrap;
+    gap: 6px 10px;
+    margin: 8px 0;
+  }
+  
+  .log-text {
+    font-size: 1rem;
+    color: #222;
+    line-height: 1.4;
+    flex: 1;
+    min-width: 200px;
+    word-break: break-word;
+  }
+  
+  /* === Responsive Overrides === */
+  @media (max-width: 1000px) {
+    body {
+      padding: 0.5em;
+    }
+  
+    textarea {
+      font-size: 2rem;
+      padding: 15px;
+    }
+  
+    button {
+      font-size: 2rem;
+      padding: 12px 20px;
+    }
+  
+    #installBtn {
+      font-size: 2rem;
+      padding: 10px 20px;
+    }
+  
+    h1 {
+      font-size: 2.2rem;
+    }
+  
+    .log-text {
+      font-size: 2rem;
+    }
+  }
+  

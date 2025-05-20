@@ -67,7 +67,7 @@ clearLogBtn.addEventListener("click", () => {
 logContainer.parentNode.insertBefore(clearLogBtn, logContainer);
 
 // Text-to-Speech Logic
-async function doSpeak() {
+async function doSpeakOld() {
   const text = textArea.value.trim();
   if (!text) return;
 
@@ -99,10 +99,48 @@ async function doSpeak() {
   }
 }
 
+
+async function doSpeak(forcedText) {
+  const text = forcedText ?? textArea.value.trim();
+  if (!text) return;
+
+  btn.disabled = true;
+  try {
+    const resp = await fetch("api/tts", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ text })
+    });
+    if (!resp.ok) throw new Error(`Status ${resp.status}`);
+
+    const blob = await resp.blob();
+    const url  = URL.createObjectURL(blob);
+    player.src = url;
+    player.hidden = false;
+    await player.play();
+
+    addToLog(text, url);
+
+    if (!forcedText) {
+      textArea.value = "";  // ✅ clear only
+      // no focus — avoids mobile keyboard popup
+    }
+
+  } catch (err) {
+    alert("Error: " + err);
+  } finally {
+    btn.disabled = false;
+  }
+}
+
+
+
 // Add Items to Log
 function addToLog(text, audioSrc) {
   const entry = document.createElement("div");
+  entry.className = "log-entry";
 
+  // Cached audio button
   const playCachedBtn = document.createElement("button");
   playCachedBtn.textContent = "▶️ Cached";
   playCachedBtn.addEventListener("click", () => {
@@ -111,35 +149,36 @@ function addToLog(text, audioSrc) {
     player.play();
   });
 
-  const reloadBtn = document.createElement("button");
-  reloadBtn.textContent = "🔄 Reload";
-  reloadBtn.addEventListener("click", async () => {
-    textArea.value = text;
-    await doSpeak();
+  // Resubmit button
+  const resubmitBtn = document.createElement("button");
+  resubmitBtn.textContent = "↩️ Replay";
+  resubmitBtn.addEventListener("click", () => {
+    
+    
+    doSpeak(text);
   });
 
+  // Remove button
   const removeBtn = document.createElement("button");
-  removeBtn.textContent = "❌ Remove";
+  removeBtn.textContent = "❌";
   removeBtn.addEventListener("click", () => {
-    logContainer.removeChild(entry);
+    entry.remove();
   });
 
+  // Text span
   const textSpan = document.createElement("span");
-  textSpan.textContent = ` ${text}`;
+  textSpan.className = "log-text";
+  textSpan.textContent = text;
 
+  // Append in correct order: buttons first, then text
   entry.appendChild(playCachedBtn);
-  entry.appendChild(reloadBtn);
+  entry.appendChild(resubmitBtn);
   entry.appendChild(removeBtn);
-  entry.appendChild(textSpan);
+  entry.appendChild(textSpan);  // ✅ Text appears after buttons
 
-  // Add to top of log
-  logContainer.prepend(entry);
-
-  // Limit log entries
-  while (logContainer.children.length > maxLogItems) {
-    logContainer.removeChild(logContainer.lastChild);
-  }
+  document.getElementById("log").appendChild(entry);
 }
+
 
 // Event Bindings
 btn.addEventListener("click", doSpeak);
