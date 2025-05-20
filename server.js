@@ -40,7 +40,12 @@ app.post(withBase("/api/tts"), async (req, res) => {
       },
       body: JSON.stringify({
         text: text,
-        reference_id: process.env.FISH_MODEL_ID
+        reference_id: process.env.FISH_MODEL_ID,
+        model: "speech-1.6",      // Set the desired model version here
+        temperature: 0.8          
+        
+
+
       })
     });
 
