@@ -142,7 +142,7 @@ function addToLog(text, audioSrc) {
 
   // Cached audio button
   const playCachedBtn = document.createElement("button");
-  playCachedBtn.textContent = "▶️ Cached";
+  playCachedBtn.textContent = "▶️";
   playCachedBtn.addEventListener("click", () => {
     player.src = audioSrc;
     player.hidden = false;
@@ -151,7 +151,7 @@ function addToLog(text, audioSrc) {
 
   // Resubmit button
   const resubmitBtn = document.createElement("button");
-  resubmitBtn.textContent = "↩️ Replay";
+  resubmitBtn.textContent = "↩️";
   resubmitBtn.addEventListener("click", () => {
     
     
