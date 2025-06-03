@@ -46,7 +46,7 @@ if ('serviceWorker' in navigator) {
 }
 
 // Common Phrases
-const commonPhrases = ["Yes", "No", "Hello", "Who is speaking?", "FUCK OFF!", "Thank you", "Goodbye", "Please", "I love you", "What is your name?", "How are you?", "Can you help me?", "Who will you vote for mayor?","That is the stupidest thing I have ever heard!"];
+const commonPhrases = ["Yes", "No", "Hello", "Who is speaking?", "FUCK OFF!", "Thank you", "Goodbye", "Please", "I love you", "What is your name?", "How are you?", "Can you help me?", "Who will you vote for mayor?","That is the stupidest thing I have ever heard!", "What don't you understand about that?"];
 commonPhrases.forEach(phrase => {
   const phraseBtn = document.createElement("button");
   phraseBtn.textContent = phrase;
