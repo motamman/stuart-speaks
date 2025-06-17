@@ -15,21 +15,48 @@
   
   <h1>Place text upon Stuart's tongue</h1>
 
-  <div class="textarea-container">
-    <textarea id="text" rows="4" placeholder="Type something…"></textarea>
-    <button id="installBtn">Install</button>
+  <!-- Authentication Section -->
+  <div id="authSection" style="display:none;">
+    <div id="loginForm">
+      <h2>Sign In</h2>
+      <input type="email" id="emailInput" placeholder="Enter your email" style="width:250px;padding:8px;margin:4px;">
+      <button id="requestCodeBtn">Send Code</button>
+      
+      <div id="codeSection" style="display:none;">
+        <input type="text" id="codeInput" placeholder="Enter 6-digit code" style="width:150px;padding:8px;margin:4px;">
+        <button id="verifyCodeBtn">Verify</button>
+      </div>
+      
+      <div id="authStatus"></div>
+    </div>
   </div>
 
-  <br>
-  <button id="speak">Speak</button><br>
-  <audio id="player" controls hidden></audio>
-  
-  
-  <h2>Common Phrases</h2>
-  <div id="commonPhrases"></div>
+  <!-- Main App (hidden until authenticated) -->
+  <div id="mainApp" style="display:none;">
+    <div id="userInfo" style="margin-bottom:10px;">
+      <span id="userEmail"></span>
+      <button id="logoutBtn" style="margin-left:10px;">Logout</button>
+    </div>
 
-  <h2>Conversation Log</h2>
-  <div id="log"></div>
+    <div class="textarea-container">
+      <textarea id="text" rows="4" placeholder="Type something…" maxlength="250"></textarea>
+      <div id="charCounter" style="position: absolute; top: 5px; right: 10px; font-size: 12px; color: #666;">0/250</div>
+      <button id="installBtn">Install</button>
+    </div>
+
+    <br>
+    <button id="speak">Speak</button><br>
+    <audio id="player" controls hidden></audio>
+    
+    <h2>Recent Texts (Autofill)</h2>
+    <div id="autofillContainer" style="margin-bottom:20px;">
+      <button id="refreshAutofillBtn">Refresh History</button>
+      <div id="autofillList"></div>
+    </div>
+    
+    <h2>Common Phrases</h2>
+    <div id="commonPhrases"></div>
+  </div>
 
   <script src="/stuart/app.js"></script>
 </body>
