@@ -17,7 +17,6 @@ const btn             = document.getElementById("speak");
 const player          = document.getElementById("player");
 const phrasesContainer= document.getElementById("commonPhrases");
 const autofillContainer = document.getElementById("autofillList");
-const refreshAutofillBtn = document.getElementById("refreshAutofillBtn");
 const charCounter     = document.getElementById("charCounter");
 
 // Authentication state
@@ -416,7 +415,6 @@ async function doSpeak(forcedText) {
 requestCodeBtn.addEventListener("click", requestVerificationCode);
 verifyCodeBtn.addEventListener("click", verifyCode);
 logoutBtn.addEventListener("click", logout);
-refreshAutofillBtn.addEventListener("click", loadAutofill);
 
 // Enter key for email and code inputs
 emailInput.addEventListener("keydown", e => {
