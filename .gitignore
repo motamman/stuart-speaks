@@ -6,6 +6,10 @@
 # Sessions (contains user session data)
 sessions/
 
+# Cache contents (keep directory structure but ignore contents)
+cache/*/*
+!cache/.gitkeep
+
 # Node modules
 node_modules/
 
