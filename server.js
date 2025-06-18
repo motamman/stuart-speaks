@@ -14,8 +14,8 @@ const fs = require("fs");
 const app = express();
 const PORT = process.env.PORT || 3001;
 
-// Determine base path: in development, serve under /stuart; in production, serve at /
-const DEV_BASE = process.env.NODE_ENV === "production" ? "" : "/stuart";
+// Determine base path: serve under /stuartvoice for both development and production
+const DEV_BASE = "/stuartvoice";
 
 // Helper to prefix routes with the base path
 const withBase = (route) => DEV_BASE + route;
@@ -40,7 +40,8 @@ app.use(session({
   resave: false,
   saveUninitialized: false,
   cookie: { 
-    secure: process.env.NODE_ENV === 'production',
+    path: '/stuartvoice/',
+    secure: false, //process.env.NODE_ENV === 'production',
     maxAge: 30 * 24 * 60 * 60 * 1000 // 30 days
   }
 }));
@@ -191,7 +192,7 @@ function requireAuth(req, res, next) {
 }
 
 // Health‐check endpoint
-app.get(withBase("/ping"), (req, res) => {
+app.get(withBase("/ping"), (_, res) => {
   res.send("pong");
 });
 
