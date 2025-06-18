@@ -3,6 +3,10 @@
   "version": "0.5.0",
   "main": "index.js",
   "scripts": {
+    "start": "node server.js",
+    "dev": "NODE_ENV=development node server.js",
+    "prod": "NODE_ENV=production node server.js",
+    "setup-dev": "./setup-local-dev.sh",
     "test": "echo \"Error: no test specified\" && exit 1"
   },
   "keywords": [],
