@@ -1,11 +1,21 @@
 #!/bin/bash
 
 # Simple rsync deployment script
-# Usage: ./deploy-rsync.sh [server] [user]
+# Usage: ./deploy-rsync.sh
 
-SERVER=${1:-"your-server.com"}
-USER=${2:-"root"}
-REMOTE_DIR="/var/www/stuart-speaks"
+# Load deployment configuration
+if [ -f .env.deploy ]; then
+    export $(grep -v '^#' .env.deploy | xargs)
+else
+    echo "⚠️  No .env.deploy file found!"
+    echo "📋 Copy .env.deploy.example to .env.deploy and configure your deployment settings"
+    exit 1
+fi
+
+SERVER=${DEPLOY_SERVER:-"your-server.com"}
+USER=${DEPLOY_USER:-"root"}
+REMOTE_DIR=${DEPLOY_REMOTE_DIR:-"/var/www/stuart-speaks"}
+PM2_APP=${DEPLOY_PM2_APP:-"stuart-speaks"}
 
 echo "🚀 Syncing to $USER@$SERVER:$REMOTE_DIR"
 
@@ -26,5 +36,5 @@ echo ""
 echo "📋 Run these commands on your server:"
 echo "  cd $REMOTE_DIR"
 echo "  npm install --production"
-echo "  pm2 restart stuart-speaks"
+echo "  pm2 restart $PM2_APP"
 echo "  sudo systemctl reload nginx"
