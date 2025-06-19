@@ -61,9 +61,10 @@ const transporter = nodemailer.createTransport({
 const CACHE_DIR = path.join(__dirname, 'cache');
 const AUDIO_CACHE_DIR = path.join(CACHE_DIR, 'audio');
 const TEXT_HISTORY_DIR = path.join(CACHE_DIR, 'text');
+const USER_PHRASES_DIR = path.join(CACHE_DIR, 'phrases');
 
 // Create cache directories if they don't exist
-[CACHE_DIR, AUDIO_CACHE_DIR, TEXT_HISTORY_DIR].forEach(dir => {
+[CACHE_DIR, AUDIO_CACHE_DIR, TEXT_HISTORY_DIR, USER_PHRASES_DIR].forEach(dir => {
   if (!fs.existsSync(dir)) {
     fs.mkdirSync(dir, { recursive: true });
   }
@@ -73,13 +74,18 @@ const TEXT_HISTORY_DIR = path.join(CACHE_DIR, 'text');
 const verificationCodes = new Map(); // email -> {code, expires}
 const audioCache = new Map(); // sessionId -> {text -> audioBlob}
 const textHistory = new Map(); // sessionId -> [text1, text2, ...]
+const userPhrases = new Map(); // sessionId -> [phrase1, phrase2, ...]
+
+// Default phrases that populate user's list on first login
+const DEFAULT_PHRASES = ["Yes", "No", "You", "Him", "Her", "They", "Not", "Call", "Hello", "Who is speaking?", "FUCK OFF!", "Thank you.", "Goodbye.", "Please", "I love you.", "What is your name?", "How are you?", "Can you help me?", "That is the stupidest thing I have ever heard!", "What don't you understand about that?"];
 
 // Cache management functions
 function getUserCacheDir(email) {
   const safeEmail = email.replace(/[^a-zA-Z0-9@.-]/g, '_');
   return {
     audio: path.join(AUDIO_CACHE_DIR, safeEmail),
-    text: path.join(TEXT_HISTORY_DIR, `${safeEmail}.json`)
+    text: path.join(TEXT_HISTORY_DIR, `${safeEmail}.json`),
+    phrases: path.join(USER_PHRASES_DIR, `${safeEmail}.json`)
   };
 }
 
@@ -118,8 +124,19 @@ function loadUserCache(email, sessionId) {
     }
   }
   
+  // Load user phrases (default to DEFAULT_PHRASES if none exist)
+  let phrasesList = [...DEFAULT_PHRASES];
+  if (fs.existsSync(cachePaths.phrases)) {
+    try {
+      phrasesList = JSON.parse(fs.readFileSync(cachePaths.phrases, 'utf8'));
+    } catch (error) {
+      console.error('Error loading user phrases for', email, error);
+    }
+  }
+  
   audioCache.set(sessionId, audioMap);
   textHistory.set(sessionId, textList);
+  userPhrases.set(sessionId, phrasesList);
 }
 
 function saveAudioCache(email, text, audioBuffer) {
@@ -165,6 +182,24 @@ function saveTextHistory(email, textList) {
     
   } catch (error) {
     console.error('Error saving text history for', email, error);
+  }
+}
+
+function saveUserPhrases(email, phrasesList) {
+  const cachePaths = getUserCacheDir(email);
+  
+  try {
+    // Create directory if needed
+    const dir = path.dirname(cachePaths.phrases);
+    if (!fs.existsSync(dir)) {
+      fs.mkdirSync(dir, { recursive: true });
+    }
+    
+    // Save user phrases
+    fs.writeFileSync(cachePaths.phrases, JSON.stringify(phrasesList));
+    
+  } catch (error) {
+    console.error('Error saving user phrases for', email, error);
   }
 }
 
@@ -308,6 +343,12 @@ app.post(withBase("/api/tts"), requireAuth, async (req, res) => {
   }
 
   const sessionId = req.session.sessionId;
+  
+  // Ensure user cache is loaded (safety check for persistent sessions)
+  if (!textHistory.has(sessionId)) {
+    loadUserCache(req.session.email, sessionId);
+  }
+  
   const userAudioCache = audioCache.get(sessionId);
   const userTextHistory = textHistory.get(sessionId);
 
@@ -438,6 +479,137 @@ app.delete(withBase("/api/history/:text"), requireAuth, (req, res) => {
   } catch (error) {
     console.error("Error deleting item:", error);
     res.status(500).json({ error: "Failed to delete item" });
+  }
+});
+
+// Phrases management endpoints
+app.get(withBase("/api/phrases"), requireAuth, (req, res) => {
+  const sessionId = req.session.sessionId;
+  const userPhrasesData = userPhrases.get(sessionId);
+  
+  if (!userPhrasesData) {
+    return res.json({ phrases: [...DEFAULT_PHRASES] });
+  }
+  
+  res.json({ phrases: userPhrasesData });
+});
+
+app.post(withBase("/api/phrases"), requireAuth, (req, res) => {
+  const { phrase, resetToDefaults, removeAll } = req.body;
+  const email = req.session.email;
+  const sessionId = req.session.sessionId;
+  
+  try {
+    // Handle reset to defaults
+    if (resetToDefaults) {
+      const defaultPhrases = [...DEFAULT_PHRASES];
+      userPhrases.set(sessionId, defaultPhrases);
+      saveUserPhrases(email, defaultPhrases);
+      return res.json({ success: true, phrases: defaultPhrases });
+    }
+    
+    // Handle remove all phrases
+    if (removeAll) {
+      const emptyPhrases = [];
+      userPhrases.set(sessionId, emptyPhrases);
+      saveUserPhrases(email, emptyPhrases);
+      return res.json({ success: true, phrases: emptyPhrases });
+    }
+    
+    // Handle adding new phrase
+    if (!phrase || typeof phrase !== 'string' || phrase.trim().length === 0) {
+      return res.status(400).json({ error: "Valid phrase required" });
+    }
+    
+    const trimmedPhrase = phrase.trim();
+    let userPhrasesData = userPhrases.get(sessionId) || [...DEFAULT_PHRASES];
+    
+    // Check if phrase already exists
+    if (userPhrasesData.includes(trimmedPhrase)) {
+      return res.status(400).json({ error: "Phrase already exists" });
+    }
+    
+    // Add new phrase
+    userPhrasesData.push(trimmedPhrase);
+    
+    // Update in-memory cache and save to disk
+    userPhrases.set(sessionId, userPhrasesData);
+    saveUserPhrases(email, userPhrasesData);
+    
+    res.json({ success: true, phrases: userPhrasesData });
+    
+  } catch (error) {
+    console.error("Error managing phrase:", error);
+    res.status(500).json({ error: "Failed to manage phrase" });
+  }
+});
+
+app.delete(withBase("/api/phrases/:phrase"), requireAuth, (req, res) => {
+  const phraseToDelete = decodeURIComponent(req.params.phrase);
+  const email = req.session.email;
+  const sessionId = req.session.sessionId;
+  
+  try {
+    let userPhrasesData = userPhrases.get(sessionId) || [...DEFAULT_PHRASES];
+    
+    const index = userPhrasesData.indexOf(phraseToDelete);
+    if (index === -1) {
+      return res.status(404).json({ error: "Phrase not found" });
+    }
+    
+    // Remove phrase
+    userPhrasesData.splice(index, 1);
+    
+    // Update in-memory cache and save to disk
+    userPhrases.set(sessionId, userPhrasesData);
+    saveUserPhrases(email, userPhrasesData);
+    
+    res.json({ success: true, phrases: userPhrasesData });
+    
+  } catch (error) {
+    console.error("Error deleting phrase:", error);
+    res.status(500).json({ error: "Failed to delete phrase" });
+  }
+});
+
+// Shared audio endpoint (public - no auth required)
+app.get(withBase("/share/:shareId"), async (req, res) => {
+  const shareId = req.params.shareId;
+  
+  try {
+    // Decode the share ID to get the original text
+    const text = Buffer.from(shareId, 'base64url').toString('utf8');
+    
+    // Generate audio on the fly
+    const apiRes = await fetch("https://api.fish.audio/v1/tts", {
+      method: "POST",
+      headers: {
+        "Authorization": `Bearer ${process.env.FISH_API_KEY}`,
+        "Content-Type": "application/json"
+      },
+      body: JSON.stringify({
+        text: text,
+        reference_id: process.env.FISH_MODEL_ID,
+        format: "mp3",
+        mp3_bitrate: 128
+      })
+    });
+
+    if (!apiRes.ok) {
+      return res.status(404).send("Audio not found");
+    }
+
+    const audioBuffer = await apiRes.buffer();
+    
+    // Set headers for audio streaming
+    res.set("Content-Type", "audio/mpeg");
+    res.set("Content-Length", audioBuffer.length);
+    res.set("Accept-Ranges", "bytes");
+    res.send(audioBuffer);
+
+  } catch (err) {
+    console.error("Error serving shared audio:", err);
+    res.status(404).send("Audio not found");
   }
 });
 
