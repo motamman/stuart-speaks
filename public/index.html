@@ -48,12 +48,18 @@
     <button id="speak">Speak</button><br>
     <audio id="player" controls hidden></audio>
     
-    <h2>Recent Texts (Autofill)</h2>
+    <h2>Recent Texts<button id="refreshAutofillBtn" style="font-size:12px;margin-left:10px;">🔄 Refresh</button></h2>
     <div id="autofillContainer" style="margin-bottom:20px;">
       <div id="autofillList"></div>
     </div>
     
     <h2>Phrase Builder</h2>
+    <div style="margin-bottom:10px;">
+      <input type="text" id="newPhraseInput" placeholder="Add new phrase..." style="width:200px;padding:6px;margin-right:5px;" maxlength="100">
+      <button id="addPhraseBtn" style="padding:6px 12px;">Add</button>
+      <button id="removeAllPhrasesBtn" style="padding:6px 12px;margin-left:10px;background:#ff9800;color:white;">Remove All</button>
+      <button id="resetPhrasesBtn" style="padding:6px 12px;margin-left:5px;background:#ff6b6b;color:white;">Reset to defaults</button>
+    </div>
     <div id="commonPhrases"></div>
   </div>
 
