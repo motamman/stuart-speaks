@@ -18,12 +18,31 @@ const player          = document.getElementById("player");
 const phrasesContainer= document.getElementById("commonPhrases");
 const autofillContainer = document.getElementById("autofillList");
 const charCounter     = document.getElementById("charCounter");
+const newPhraseInput      = document.getElementById("newPhraseInput");
+const addPhraseBtn        = document.getElementById("addPhraseBtn");
+const removeAllPhrasesBtn = document.getElementById("removeAllPhrasesBtn");
+const resetPhrasesBtn     = document.getElementById("resetPhrasesBtn");
 
 // Authentication state
 let isAuthenticated = false;
 let currentUserEmail = null;
 
+// Store local autofill list for smart merging
+let localAutofillList = [];
+
 let deferredPrompt;
+
+// Show sync notifications
+function showSyncNotification(message) {
+  // Create temporary notification element
+  const notification = document.createElement('div');
+  notification.style.cssText = 'background:#4CAF50;color:white;padding:8px;border-radius:4px;margin:10px 0;text-align:center;';
+  notification.textContent = message;
+  
+  // Show for 3 seconds then remove
+  autofillContainer.insertBefore(notification, autofillContainer.firstChild);
+  setTimeout(() => notification.remove(), 3000);
+}
 
 // Authentication Functions
 async function checkAuthStatus() {
@@ -54,6 +73,7 @@ function showMainApp() {
   mainApp.style.display = 'block';
   userEmail.textContent = `Signed in as: ${currentUserEmail}`;
   loadAutofill();
+  loadPhrases();
 }
 
 async function requestVerificationCode() {
@@ -140,17 +160,38 @@ async function logout() {
   showAuthSection();
 }
 
-async function loadAutofill() {
+async function loadAutofill(showLoadingIndicator = false) {
   try {
+    // Show loading indicator if requested
+    if (showLoadingIndicator) {
+      autofillContainer.innerHTML = '<div id="sync-indicator" style="text-align:center;color:#666;padding:10px;">🔄 Checking for new texts...</div>';
+    }
+    
     const resp = await fetch('api/autofill');
     const data = await resp.json();
     
+    // Smart merge: check for new items
+    const serverList = data.history || [];
+    const newItems = serverList.filter(serverText => 
+      !localAutofillList.includes(serverText)
+    );
+    
+    // Update local list
+    localAutofillList = [...serverList];
+    
+    // Show notification if new items found
+    if (newItems.length > 0 && showLoadingIndicator) {
+      showSyncNotification(`${newItems.length} new text${newItems.length > 1 ? 's' : ''} found from other devices`);
+    }
+    
+    // Clear container
     autofillContainer.innerHTML = '';
     
     if (data.history && data.history.length > 0) {
       data.history.forEach((text) => {
         const entry = document.createElement('div');
         entry.className = 'log-entry';
+        entry.style.cssText = 'border: 1px solid #e0e0e0; border-radius: 8px; padding: 10px; margin: 8px 0; background: #fafafa;';
 
         // Play cached button (if audio exists in cache)
         const playCachedBtn = document.createElement('button');
@@ -221,6 +262,74 @@ async function loadAutofill() {
           textArea.focus();
         });
 
+        // Add to phrases button
+        const addToPhraseBtn = document.createElement('button');
+        addToPhraseBtn.textContent = '➕';
+        addToPhraseBtn.title = 'Add to phrases';
+        addToPhraseBtn.addEventListener('click', async () => {
+          try {
+            const resp = await fetch('api/phrases', {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({ phrase: text })
+            });
+            
+            const data = await resp.json();
+            
+            if (data.success) {
+              loadPhrases(); // Reload phrases to show the new one
+              // Show brief success indicator
+              addToPhraseBtn.textContent = '✓';
+              addToPhraseBtn.style.color = 'green';
+              setTimeout(() => {
+                addToPhraseBtn.textContent = '➕';
+                addToPhraseBtn.style.color = '';
+              }, 1500);
+            } else {
+              alert(data.error || 'Failed to add to phrases');
+            }
+          } catch (err) {
+            console.error('Error adding to phrases:', err);
+            alert('Error adding to phrases');
+          }
+        });
+
+        // Share audio button
+        const shareAudioBtn = document.createElement('button');
+        shareAudioBtn.textContent = '🔗';
+        shareAudioBtn.title = 'Copy shareable link';
+        shareAudioBtn.addEventListener('click', async () => {
+          try {
+            // Create a base64url-encoded share ID from the text
+            const shareId = btoa(text).replace(/\+/g, '-').replace(/\//g, '_').replace(/=/g, '');
+            
+            // Generate shareable URL
+            const shareUrl = `${window.location.origin}/stuartvoice/share/${shareId}`;
+            
+            // Copy to clipboard
+            await navigator.clipboard.writeText(shareUrl);
+            
+            // Show success feedback
+            shareAudioBtn.textContent = '✓';
+            shareAudioBtn.style.color = 'green';
+            setTimeout(() => {
+              shareAudioBtn.textContent = '🔗';
+              shareAudioBtn.style.color = '';
+            }, 1500);
+            
+            // Optional: show a brief notification
+            showSyncNotification('Shareable link copied to clipboard!');
+            
+          } catch (err) {
+            console.error('Error creating share link:', err);
+            
+            // Fallback: show the URL in an alert if clipboard fails
+            const shareId = btoa(text).replace(/\+/g, '-').replace(/\//g, '_').replace(/=/g, '');
+            const shareUrl = `${window.location.origin}/stuartvoice/share/${shareId}`;
+            prompt('Copy this link to share the audio:', shareUrl);
+          }
+        });
+
         // Remove from history button
         const removeBtn = document.createElement('button');
         removeBtn.textContent = '❌';
@@ -241,18 +350,28 @@ async function loadAutofill() {
           }
         });
 
-        // Text span
-        const textSpan = document.createElement('span');
+        // Text span (now at the top)
+        const textSpan = document.createElement('div');
         textSpan.className = 'log-text';
-        textSpan.textContent = text.length > 80 ? text.substring(0, 80) + '...' : text;
+        textSpan.textContent = text;
         textSpan.title = text; // Full text on hover
+        textSpan.style.cssText = 'margin-bottom: 8px; font-weight: 500; color: #333; word-wrap: break-word;';
 
-        // Append in order: buttons first, then text
-        entry.appendChild(playCachedBtn);
-        entry.appendChild(resubmitBtn);
-        entry.appendChild(fillBtn);
-        entry.appendChild(removeBtn);
+        // Button container
+        const buttonContainer = document.createElement('div');
+        buttonContainer.style.cssText = 'display: flex; gap: 4px; flex-wrap: wrap;';
+
+        // Append in order: text first, then buttons
         entry.appendChild(textSpan);
+        entry.appendChild(buttonContainer);
+        
+        // Add buttons to container
+        buttonContainer.appendChild(playCachedBtn);
+        buttonContainer.appendChild(resubmitBtn);
+        buttonContainer.appendChild(fillBtn);
+        buttonContainer.appendChild(addToPhraseBtn);
+        buttonContainer.appendChild(shareAudioBtn);
+        buttonContainer.appendChild(removeBtn);
 
         autofillContainer.appendChild(entry);
       });
@@ -300,16 +419,170 @@ if ('serviceWorker' in navigator) {
   });
 }
 
-// Common Phrases
-const commonPhrases = ["Yes", "No", "You", "Him", "Her", "They", "Not", "Call", "Hello", "Who is speaking?", "FUCK OFF!", "Thank you.", "Goodbye.", "Please", "I love you.", "What is your name?", "How are you?", "Can you help me?","That is the stupidest thing I have ever heard!", "What don't you understand about that?"];
-commonPhrases.forEach(phrase => {
+// Load and display user phrases
+async function loadPhrases() {
+  try {
+    const resp = await fetch('api/phrases');
+    const data = await resp.json();
+    
+    // Clear existing phrases
+    phrasesContainer.innerHTML = '';
+    
+    const phrases = data.phrases || [];
+    
+    if (phrases.length > 0) {
+      phrases.forEach(phrase => {
+        createPhraseButton(phrase);
+      });
+    }
+    
+    // Update Remove All button state
+    updateRemoveAllButtonState(phrases.length);
+    
+  } catch (err) {
+    console.error('Failed to load phrases:', err);
+  }
+}
+
+function updateRemoveAllButtonState(phraseCount) {
+  if (phraseCount === 0) {
+    removeAllPhrasesBtn.disabled = true;
+    removeAllPhrasesBtn.style.opacity = '0.5';
+    removeAllPhrasesBtn.style.cursor = 'not-allowed';
+  } else {
+    removeAllPhrasesBtn.disabled = false;
+    removeAllPhrasesBtn.style.opacity = '1';
+    removeAllPhrasesBtn.style.cursor = 'pointer';
+  }
+}
+
+function createPhraseButton(phrase) {
+  const phraseContainer = document.createElement("div");
+  phraseContainer.style.cssText = "display:inline-block;margin:4px;position:relative;";
+  
   const phraseBtn = document.createElement("button");
   phraseBtn.textContent = phrase;
+  phraseBtn.style.cssText = "padding:8px 20px 8px 12px;position:relative;";
   phraseBtn.addEventListener("click", () => {
-    insertTextAtCursor(phrase);
+    // Add space after phrase if it doesn't already end with one
+    const phraseWithSpace = phrase.endsWith(' ') ? phrase : phrase + ' ';
+    insertTextAtCursor(phraseWithSpace);
   });
-  phrasesContainer.appendChild(phraseBtn);
-});
+  
+  const removeBtn = document.createElement("button");
+  removeBtn.textContent = "×";
+  removeBtn.style.cssText = "position:absolute;top:-2px;right:-2px;width:16px;height:16px;font-size:12px;padding:0;background:#ff6b6b;color:white;border:none;border-radius:50%;cursor:pointer;display:flex;align-items:center;justify-content:center;line-height:1;";
+  removeBtn.title = "Remove this phrase";
+  removeBtn.addEventListener("click", async (e) => {
+    e.stopPropagation();
+    await removePhrase(phrase);
+  });
+  
+  phraseContainer.appendChild(phraseBtn);
+  phraseContainer.appendChild(removeBtn);
+  phrasesContainer.appendChild(phraseContainer);
+}
+
+async function addPhrase() {
+  const phrase = newPhraseInput.value.trim();
+  if (!phrase) {
+    alert("Please enter a phrase");
+    return;
+  }
+  
+  try {
+    const resp = await fetch('api/phrases', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ phrase })
+    });
+    
+    const data = await resp.json();
+    
+    if (data.success) {
+      newPhraseInput.value = '';
+      loadPhrases(); // Reload all phrases
+    } else {
+      alert(data.error || 'Failed to add phrase');
+    }
+  } catch (err) {
+    console.error('Error adding phrase:', err);
+    alert('Error adding phrase');
+  }
+}
+
+async function removePhrase(phrase) {
+  try {
+    const resp = await fetch(`api/phrases/${encodeURIComponent(phrase)}`, {
+      method: 'DELETE'
+    });
+    
+    const data = await resp.json();
+    
+    if (data.success) {
+      loadPhrases(); // Reload all phrases
+    } else {
+      alert(data.error || 'Failed to remove phrase');
+    }
+  } catch (err) {
+    console.error('Error removing phrase:', err);
+    alert('Error removing phrase');
+  }
+}
+
+async function removeAllPhrases() {
+  // Don't proceed if button is disabled
+  if (removeAllPhrasesBtn.disabled) {
+    return;
+  }
+  
+  if (!confirm('Remove all phrases? This will leave your phrase builder empty.')) {
+    return;
+  }
+  
+  try {
+    const resp = await fetch('api/phrases', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ removeAll: true })
+    });
+    
+    const data = await resp.json();
+    
+    if (data.success) {
+      loadPhrases(); // Reload all phrases
+    } else {
+      alert(data.error || 'Failed to remove all phrases');
+    }
+  } catch (err) {
+    console.error('Error removing all phrases:', err);
+    alert('Error removing all phrases');
+  }
+}
+
+async function resetPhrases() {
+  if (!confirm('Reset all phrases to defaults? This will remove all your custom phrases.')) {
+    return;
+  }
+  
+  try {
+    // Get default phrases by making a request that will reset to defaults
+    const resp = await fetch('api/phrases', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ resetToDefaults: true })
+    });
+    
+    if (resp.ok) {
+      loadPhrases(); // Reload all phrases
+    } else {
+      alert('Failed to reset phrases');
+    }
+  } catch (err) {
+    console.error('Error resetting phrases:', err);
+    alert('Error resetting phrases');
+  }
+}
 
 // Function to insert text at cursor position or append to end
 function insertTextAtCursor(text) {
@@ -433,6 +706,31 @@ codeInput.addEventListener("keydown", e => {
 
 // Main App Event Bindings
 btn.addEventListener("click", () => doSpeak());
+
+// Refresh autofill button
+document.getElementById("refreshAutofillBtn").addEventListener("click", () => {
+  loadAutofill(true); // Show loading indicator and notifications
+});
+
+// Phrase management event listeners
+addPhraseBtn.addEventListener("click", addPhrase);
+removeAllPhrasesBtn.addEventListener("click", removeAllPhrases);
+resetPhrasesBtn.addEventListener("click", resetPhrases);
+
+// Enter key for new phrase input
+newPhraseInput.addEventListener("keydown", e => {
+  if (e.key === "Enter") {
+    e.preventDefault();
+    addPhrase();
+  }
+});
+
+// Auto-sync when window gains focus (important for PWAs)
+window.addEventListener('focus', () => {
+  if (isAuthenticated) {
+    loadAutofill(true); // Show indicator when returning to app
+  }
+});
 
 textArea.addEventListener("keydown", e => {
   if (e.key === "Enter" && !e.shiftKey) {
