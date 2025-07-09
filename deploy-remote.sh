@@ -20,7 +20,7 @@ fi
 echo "🚀 Deploying Stuart Speaks to $USER@$SERVER..."
 
 # Check if we can connect
-if ! ssh $SSH_OPTS -o ConnectTimeout=5 "$USER@$SERVER" exit 2>/dev/null; then
+if ! ssh $SSH_OPTS -o ConnectTimeout=5 -o StrictHostKeyChecking=no "$USER@$SERVER" exit 2>/dev/null; then
     echo "❌ Cannot connect to $USER@$SERVER"
     echo "Usage: ./deploy-remote.sh <server-ip> <username> [ssh-key-path]"
     exit 1
@@ -40,11 +40,11 @@ tar --exclude='node_modules' \
 
 # Upload to server
 echo "📤 Uploading to server..."
-scp $SCP_OPTS stuart-deploy.tar.gz "$USER@$SERVER:/tmp/"
+scp $SCP_OPTS -o StrictHostKeyChecking=no stuart-deploy.tar.gz "$USER@$SERVER:/tmp/"
 
 # Deploy on server
 echo "🔧 Installing on server..."
-ssh $SSH_OPTS "$USER@$SERVER" << 'EOF'
+ssh $SSH_OPTS -o StrictHostKeyChecking=no "$USER@$SERVER" << 'EOF'
 set -e
 
 # Stop existing service
