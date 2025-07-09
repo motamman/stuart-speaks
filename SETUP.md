@@ -63,3 +63,70 @@ tts-backend/
 - Session files contain authentication state
 - All persistent data survives server restarts
 - Email verification required for each new device/browser
+
+## Deployment Troubleshooting
+
+### Common Issues During Deployment
+
+#### 1. SSH Connection Problems
+- **Host key verification failed**: Accept the host key first with:
+  ```bash
+  ssh -o StrictHostKeyChecking=no -i your-key.pem ubuntu@your-server
+  ```
+- **Permission denied**: Ensure your SSH key has correct permissions:
+  ```bash
+  chmod 600 your-key.pem
+  ```
+
+#### 2. Port Conflicts
+- **Port 3002 already in use**: Kill conflicting processes:
+  ```bash
+  sudo netstat -tulpn | grep :3002
+  sudo kill [PID]
+  ```
+- **Multiple Node.js processes**: Check for duplicate processes:
+  ```bash
+  ps aux | grep node
+  pm2 list
+  ```
+
+#### 3. Application Restart Loop
+- **Symptoms**: PM2 shows high restart count, app keeps crashing
+- **Common causes**:
+  - Missing or incorrect `.env` file
+  - Invalid API keys (Fish.Audio, ProtonMail)
+  - File permissions issues
+- **Solutions**:
+  - Verify `.env` file exists and has correct values
+  - Check PM2 logs: `pm2 logs stuart-speaks`
+  - Ensure cache directories are writable: `sudo chown -R ubuntu:ubuntu /var/www/stuart-speaks`
+
+#### 4. API Integration Issues
+- **Fish.Audio API errors**: Verify `FISH_API_KEY` and `FISH_MODEL_ID` are correct
+- **Email sending failures**: Check `PROTON_EMAIL` and `PROTON_SMTP_TOKEN`
+- **Test endpoints**:
+  ```bash
+  curl http://localhost:3002/stuartvoice/ping  # Should return "pong"
+  curl http://localhost:3002/stuartvoice/      # Should return HTML
+  ```
+
+#### 5. Cache File Locations
+Cache files are stored in `/var/www/stuart-speaks/cache/`:
+- **Audio cache**: `cache/audio/[email]/` (*.mp3 and *.json files)
+- **Text history**: `cache/text/[email].json`
+- **User phrases**: `cache/phrases/[email].json`
+- **Sessions**: `sessions/` directory
+
+### Deployment Commands
+```bash
+# Manual deployment steps
+./deploy-remote.sh your-server.com ubuntu /path/to/key.pem
+
+# Or use rsync method
+./deploy-rsync.sh  # Requires .env.deploy configuration
+
+# Check deployment status
+pm2 status
+pm2 logs stuart-speaks
+curl http://localhost:3002/stuartvoice/ping
+```
