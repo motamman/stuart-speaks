@@ -12,7 +12,7 @@ const crypto = require("crypto");
 const fs = require("fs");
 
 const app = express();
-const PORT = process.env.PORT || 3001;
+const PORT = process.env.PORT || 3002;
 
 // Determine base path: serve under /stuartvoice for both development and production
 const DEV_BASE = "/stuartvoice";
@@ -76,8 +76,21 @@ const audioCache = new Map(); // sessionId -> {text -> audioBlob}
 const textHistory = new Map(); // sessionId -> [text1, text2, ...]
 const userPhrases = new Map(); // sessionId -> [phrase1, phrase2, ...]
 
-// Default phrases that populate user's list on first login
-const DEFAULT_PHRASES = ["Yes", "No", "You", "Him", "Her", "They", "Not", "Call", "Hello", "Who is speaking?", "FUCK OFF!", "Thank you.", "Goodbye.", "Please", "I love you.", "What is your name?", "How are you?", "Can you help me?", "That is the stupidest thing I have ever heard!", "What don't you understand about that?"];
+// Load default phrases from JSON file
+let DEFAULT_PHRASES = [];
+try {
+  const phrasesPath = path.join(__dirname, 'default_phrases.json');
+  DEFAULT_PHRASES = JSON.parse(fs.readFileSync(phrasesPath, 'utf8'));
+  console.log(`Loaded ${DEFAULT_PHRASES.length} default phrases from default_phrases.json`);
+} catch (error) {
+  console.error('Error loading default_phrases.json, using fallback phrases:', error.message);
+  DEFAULT_PHRASES = [
+    "Yes", "No", "You", "Him", "Her", "They", "Not", "Call", "Hello",
+    "Who is speaking?", "FUCK OFF!", "Thank you.", "Goodbye.", "Please",
+    "I love you.", "What is your name?", "How are you?", "Can you help me?",
+    "That is the stupidest thing I have ever heard!", "What don't you understand about that?"
+  ];
+}
 
 // Cache management functions
 function getUserCacheDir(email) {
