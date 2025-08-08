@@ -19,7 +19,7 @@ npm run dev
 |--------|-------------|------------|
 | **URL Path** | `/stuartvoice/` | `/stuartvoice/` |
 | **nginx Port** | 8080 | 80/443 |
-| **Node.js Port** | 3001 | 3001 |
+| **Node.js Port** | 3002 | 3002 |
 | **SSL** | None | Required |
 | **Environment** | `NODE_ENV=development` | `NODE_ENV=production` |
 | **Logging** | Debug level | Warn level |
@@ -109,9 +109,14 @@ cp .env.production .env
 
 ### 4. Start Production Server
 ```bash
-npm run prod
-# Or use PM2 for process management
-pm2 start ecosystem.config.js
+# Set up systemd service
+sudo cp tts-backend.service /etc/systemd/system/
+sudo systemctl daemon-reload
+sudo systemctl enable tts-backend
+sudo systemctl start tts-backend
+
+# Check status
+sudo systemctl status tts-backend
 ```
 
 ## Troubleshooting Authentication

@@ -15,7 +15,7 @@ fi
 SERVER=${DEPLOY_SERVER:-"your-server.com"}
 USER=${DEPLOY_USER:-"root"}
 REMOTE_DIR=${DEPLOY_REMOTE_DIR:-"/var/www/stuart-speaks"}
-PM2_APP=${DEPLOY_PM2_APP:-"stuart-speaks"}
+# PM2 no longer used - systemd service instead
 
 echo "🚀 Syncing to $USER@$SERVER:$REMOTE_DIR"
 
@@ -36,5 +36,5 @@ echo ""
 echo "📋 Run these commands on your server:"
 echo "  cd $REMOTE_DIR"
 echo "  npm install --production"
-echo "  pm2 restart $PM2_APP"
+echo "  sudo systemctl restart tts-backend"
 echo "  sudo nginx -t && sudo systemctl restart nginx"

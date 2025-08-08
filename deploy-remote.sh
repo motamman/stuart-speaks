@@ -48,9 +48,7 @@ ssh $SSH_OPTS -o StrictHostKeyChecking=no "$USER@$SERVER" << 'EOF'
 set -e
 
 # Stop existing service
-if command -v pm2 &> /dev/null; then
-    pm2 stop stuart-speaks 2>/dev/null || true
-fi
+sudo systemctl stop tts-backend 2>/dev/null || true
 
 # Create application directory
 sudo mkdir -p /var/www/stuart-speaks
@@ -98,16 +96,12 @@ else
     echo "❌ Nginx configuration test failed"
 fi
 
-# Start application with PM2
-if command -v pm2 &> /dev/null; then
-    pm2 start server.js --name "stuart-speaks" --watch
-    pm2 save
-    echo "✅ Application started with PM2"
-else
-    echo "⚠️  PM2 not found - install with: npm install -g pm2"
-    echo "Starting with node directly..."
-    nohup node server.js > logs/app.log 2>&1 &
-fi
+# Set up and start systemd service
+sudo cp tts-backend.service /etc/systemd/system/
+sudo systemctl daemon-reload
+sudo systemctl enable tts-backend
+sudo systemctl start tts-backend
+echo "✅ Application started with systemd"
 
 # Cleanup
 rm -f /tmp/stuart-deploy.tar.gz
@@ -117,7 +111,7 @@ echo "📝 Next steps:"
 echo "  1. Update domain name in /etc/nginx/sites-available/stuart-speaks"
 echo "  2. Configure SSL: sudo certbot --nginx -d yourdomain.com"
 echo "  3. Edit .env file with production values"
-echo "  4. Check logs: pm2 logs stuart-speaks"
+echo "  4. Check logs: sudo journalctl -u tts-backend -f"
 echo ""
 echo "🌟 Stuart Speaks should be running at https://yourdomain.com/stuartvoice"
 EOF

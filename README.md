@@ -180,11 +180,12 @@ tts-backend/
    scp .env user@server:/var/www/stuart-speaks/
    ```
 
-4. **Start with PM2**:
+4. **Set up systemd service**:
    ```bash
-   pm2 start server.js --name stuart-speaks
-   pm2 save
-   pm2 startup
+   sudo cp tts-backend.service /etc/systemd/system/
+   sudo systemctl daemon-reload
+   sudo systemctl enable tts-backend
+   sudo systemctl start tts-backend
    ```
 
 5. **Configure Nginx** (optional):
@@ -279,13 +280,13 @@ tts-backend/
 
 ## Monitoring and Maintenance
 
-### PM2 Commands
+### Systemd Commands
 ```bash
-pm2 status              # Check process status
-pm2 logs stuart-speaks  # View application logs
-pm2 restart stuart-speaks  # Restart application
-pm2 stop stuart-speaks  # Stop application
-pm2 delete stuart-speaks  # Remove from PM2
+sudo systemctl status tts-backend    # Check service status
+sudo journalctl -u tts-backend -f    # View application logs (live)
+sudo systemctl restart tts-backend   # Restart application
+sudo systemctl stop tts-backend      # Stop application
+sudo systemctl disable tts-backend   # Disable auto-start
 ```
 
 ### Cache Management
@@ -299,8 +300,8 @@ rm -rf /var/www/stuart-speaks/cache/audio/user@domain.com/
 ```
 
 ### Log Files
-- **PM2 logs**: `~/.pm2/logs/stuart-speaks-*.log`
-- **Application logs**: `/var/www/stuart-speaks/logs/`
+- **Systemd logs**: `sudo journalctl -u tts-backend`
+- **Application logs**: `/var/www/stuart-speaks/logs/` (if configured)
 - **Nginx logs**: `/var/log/nginx/`
 
 ## Troubleshooting
@@ -329,15 +330,16 @@ rm -rf /var/www/stuart-speaks/cache/audio/user@domain.com/
 
 #### Performance Issues
 - **Slow response**: Check Fish.Audio API latency and chunking efficiency
-- **High memory usage**: Monitor cache size, combined audio files, and PM2 memory
+- **High memory usage**: Monitor cache size, combined audio files, and system memory (`htop`)
 - **Port conflicts**: Ensure port 3002 is available
 - **Large audio files**: Combined chunks may be larger but provide better UX
 
 #### Deployment Issues
 - **SSH connection failed**: Check SSH key permissions and server access
-- **Port already in use**: Kill conflicting processes
-- **Application crashes**: Check PM2 logs and environment variables
+- **Port already in use**: Kill conflicting processes or use `sudo systemctl stop tts-backend`
+- **Application crashes**: Check systemd logs with `sudo journalctl -u tts-backend`
 - **Missing dependencies**: Ensure multer is installed for v0.8.0
+- **Service won't start**: Verify file permissions and .env configuration
 
 ### Health Checks
 ```bash
@@ -375,6 +377,6 @@ ls -la /var/www/stuart-speaks/cache/audio/
 
 For issues and questions:
 - Check the troubleshooting section above
-- Review PM2 logs for error details
+- Review systemd logs with `sudo journalctl -u tts-backend`
 - Verify all environment variables are set correctly
 - Test API endpoints individually

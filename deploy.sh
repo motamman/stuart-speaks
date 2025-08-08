@@ -1,7 +1,7 @@
 #!/bin/bash
 
 # Stuart Speaks Deployment Script
-echo "🚀 Deploying Stuart Speaks v0.5..."
+echo "🚀 Deploying Stuart Speaks v0.8.0..."
 
 # Update system packages
 echo "📦 Updating system packages..."
@@ -14,11 +14,7 @@ if ! command -v node &> /dev/null; then
     sudo apt-get install -y nodejs
 fi
 
-# Install PM2 for process management
-if ! command -v pm2 &> /dev/null; then
-    echo "📦 Installing PM2..."
-    sudo npm install -g pm2
-fi
+# PM2 no longer needed - using systemd service
 
 # Create application directory
 APP_DIR="/var/www/stuart-speaks"
@@ -50,11 +46,12 @@ sudo cp nginx.conf /etc/nginx/sites-available/stuart-speaks
 sudo ln -sf /etc/nginx/sites-available/stuart-speaks /etc/nginx/sites-enabled/
 sudo nginx -t && sudo systemctl reload nginx
 
-# Start application with PM2
-echo "🚀 Starting application..."
-pm2 start ecosystem.config.js
-pm2 save
-pm2 startup
+# Set up systemd service
+echo "🚀 Setting up systemd service..."
+sudo cp tts-backend.service /etc/systemd/system/
+sudo systemctl daemon-reload
+sudo systemctl enable tts-backend
+sudo systemctl start tts-backend
 
 # Set up firewall (if ufw is available)
 if command -v ufw &> /dev/null; then
@@ -71,6 +68,6 @@ echo "  1. Update your domain name in /etc/nginx/sites-available/stuart-speaks"
 echo "  2. Add SSL certificates to nginx configuration"
 echo "  3. Edit .env file with your actual API keys and SMTP settings"
 echo "  4. Restart nginx: sudo systemctl reload nginx"
-echo "  5. Check application status: pm2 status"
+echo "  5. Check application status: sudo systemctl status tts-backend"
 echo ""
-echo "🌟 Stuart Speaks should be running at http://yourdomain.com/stuart"
+echo "🌟 Stuart Speaks should be running at http://yourdomain.com/stuartvoice/"
