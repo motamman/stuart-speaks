@@ -10,6 +10,7 @@ const nodemailer = require("nodemailer");
 const { v4: uuidv4 } = require("uuid");
 const crypto = require("crypto");
 const fs = require("fs");
+const multer = require('multer');
 
 const app = express();
 const PORT = process.env.PORT || 3002;
@@ -22,6 +23,18 @@ const withBase = (route) => DEV_BASE + route;
 
 // Parse JSON bodies for all requests
 app.use(express.json());
+
+// Configure multer for file uploads
+const upload = multer({ 
+  dest: 'uploads/',
+  limits: { fileSize: 10 * 1024 * 1024 } // 10MB limit
+});
+
+// Ensure combined audio cache directory exists
+const COMBINED_CACHE_DIR = path.join(__dirname, 'cache', 'combined');
+if (!fs.existsSync(COMBINED_CACHE_DIR)) {
+  fs.mkdirSync(COMBINED_CACHE_DIR, { recursive: true });
+}
 
 // Session configuration with file store
 const SESSIONS_DIR = path.join(__dirname, 'sessions');
@@ -294,6 +307,25 @@ app.post(withBase("/api/auth/verify-code"), (req, res) => {
     return res.status(400).json({ error: "Email and code required" });
   }
 
+  // DEVELOPMENT BYPASS: Accept "123456" as valid code for any email
+  if (process.env.NODE_ENV === 'development' && code === '123456') {
+    console.log(`Development bypass: accepting code 123456 for ${email}`);
+    
+    // Create session
+    req.session.authenticated = true;
+    req.session.email = email;
+    req.session.sessionId = uuidv4();
+    
+    // Load user's persistent cache
+    loadUserCache(email, req.session.sessionId);
+    
+    return res.json({ 
+      success: true, 
+      message: "Authentication successful (dev mode)",
+      email: email
+    });
+  }
+
   // Clean expired codes
   cleanExpiredCodes();
   
@@ -350,6 +382,9 @@ app.get(withBase("/api/auth/status"), (req, res) => {
 app.post(withBase("/api/tts"), requireAuth, async (req, res) => {
   const text = req.body.text;
   const bypassCache = req.body.bypassCache || false;
+  const isChunk = req.body.isChunk || false;
+  const originalText = req.body.originalText || text;
+  const addToHistoryOnly = req.body.addToHistoryOnly || false;
   
   if (!text) {
     return res.status(400).json({ error: "Missing text in request body" });
@@ -366,6 +401,30 @@ app.post(withBase("/api/tts"), requireAuth, async (req, res) => {
   const userTextHistory = textHistory.get(sessionId);
 
   try {
+    // Handle history-only requests (no audio generation needed)
+    if (addToHistoryOnly) {
+      // Add to text history only
+      if (userTextHistory) {
+        // Remove existing entry if it exists
+        const existingIndex = userTextHistory.indexOf(text);
+        if (existingIndex > -1) {
+          userTextHistory.splice(existingIndex, 1);
+        }
+        
+        // Add to beginning
+        userTextHistory.unshift(text);
+        
+        if (userTextHistory.length > 50) { // Keep last 50 items
+          userTextHistory.pop();
+        }
+        
+        // Save to persistent storage
+        saveTextHistory(req.session.email, userTextHistory);
+      }
+      
+      return res.json({ success: true, message: "Added to history" });
+    }
+    
     // Check cache first (unless bypassing)
     if (!bypassCache && userAudioCache && userAudioCache.has(text)) {
       console.log("Serving cached audio for:", text.substring(0, 50));
@@ -407,16 +466,18 @@ app.post(withBase("/api/tts"), requireAuth, async (req, res) => {
       saveAudioCache(req.session.email, text, audioBuffer);
     }
     
-    // Add to text history (avoid duplicates)
-    if (userTextHistory) {
+    // Add to text history (avoid duplicates) - but skip individual chunks
+    if (userTextHistory && !isChunk) {
+      const textToHistory = isChunk ? originalText : text;
+      
       // Remove existing entry if it exists
-      const existingIndex = userTextHistory.indexOf(text);
+      const existingIndex = userTextHistory.indexOf(textToHistory);
       if (existingIndex > -1) {
         userTextHistory.splice(existingIndex, 1);
       }
       
       // Add to beginning
-      userTextHistory.unshift(text);
+      userTextHistory.unshift(textToHistory);
       
       if (userTextHistory.length > 50) { // Keep last 50 items
         userTextHistory.pop();
@@ -637,6 +698,115 @@ app.get(withBase("/api/cache-stats"), requireAuth, (req, res) => {
     textHistorySize: userTextHistory ? userTextHistory.length : 0,
     sessionId: sessionId
   });
+});
+
+// Cache combined audio endpoint
+app.post(withBase("/api/cache-combined"), requireAuth, upload.single('audio'), async (req, res) => {
+  console.log("📥 Received combined audio cache request");
+
+  try {
+    const { text } = req.body;
+    const audioFile = req.file;
+    const email = req.session.email;
+    const sessionId = req.session.sessionId;
+
+    if (!text || !audioFile) {
+      return res.status(400).json({ error: "Missing text or audio file" });
+    }
+
+    // Generate hash for the text to use as filename
+    const textHash = crypto.createHash('md5').update(text).digest('hex');
+    const cachedPath = path.join(COMBINED_CACHE_DIR, `${textHash}.wav`);
+    const metadataPath = path.join(COMBINED_CACHE_DIR, `${textHash}.json`);
+
+    // Move uploaded file to cache directory
+    fs.copyFileSync(audioFile.path, cachedPath);
+
+    // Clean up temporary file
+    fs.unlinkSync(audioFile.path);
+
+    // Save metadata for combined audio
+    fs.writeFileSync(metadataPath, JSON.stringify({
+      text: text,
+      timestamp: Date.now(),
+      email: email,
+      type: 'combined'
+    }));
+
+    // Also add to user's in-memory cache for immediate use
+    const userAudioCache = audioCache.get(sessionId);
+    if (userAudioCache) {
+      userAudioCache.set(text, fs.readFileSync(cachedPath));
+      console.log("✅ Added combined audio to in-memory cache");
+    }
+
+    console.log(`💾 Cached combined audio for text: "${text.substring(0, 50)}..." (${audioFile.size} bytes)`);
+    
+    res.json({ 
+      success: true, 
+      cached: true, 
+      size: audioFile.size,
+      hash: textHash 
+    });
+
+  } catch (err) {
+    console.error("❌ Error caching combined audio:", err);
+    res.status(500).json({ error: "Failed to cache combined audio" });
+  }
+});
+
+// Serve combined audio endpoint
+app.get(withBase("/api/combined/:hash"), requireAuth, (req, res) => {
+  const hash = req.params.hash;
+  const cachedPath = path.join(COMBINED_CACHE_DIR, `${hash}.wav`);
+  const metadataPath = path.join(COMBINED_CACHE_DIR, `${hash}.json`);
+  
+  try {
+    // Check if combined audio exists
+    if (!fs.existsSync(cachedPath) || !fs.existsSync(metadataPath)) {
+      return res.status(404).json({ error: "Combined audio not found" });
+    }
+    
+    // Verify metadata
+    const metadata = JSON.parse(fs.readFileSync(metadataPath, 'utf8'));
+    
+    // Serve the combined audio file
+    res.set("Content-Type", "audio/wav");
+    res.set("Content-Length", fs.statSync(cachedPath).size);
+    res.sendFile(cachedPath);
+    
+    console.log(`🎵 Served combined audio: ${hash} for text "${metadata.text.substring(0, 50)}..."`);
+    
+  } catch (err) {
+    console.error("❌ Error serving combined audio:", err);
+    res.status(500).json({ error: "Failed to serve combined audio" });
+  }
+});
+
+// Check if combined audio exists endpoint
+app.post(withBase("/api/check-combined"), requireAuth, (req, res) => {
+  const { text } = req.body;
+  
+  if (!text) {
+    return res.status(400).json({ error: "Text required" });
+  }
+  
+  try {
+    const textHash = crypto.createHash('md5').update(text).digest('hex');
+    const cachedPath = path.join(COMBINED_CACHE_DIR, `${textHash}.wav`);
+    const metadataPath = path.join(COMBINED_CACHE_DIR, `${textHash}.json`);
+    
+    const exists = fs.existsSync(cachedPath) && fs.existsSync(metadataPath);
+    
+    res.json({ 
+      exists, 
+      hash: exists ? textHash : null 
+    });
+    
+  } catch (err) {
+    console.error("❌ Error checking combined audio:", err);
+    res.status(500).json({ error: "Failed to check combined audio" });
+  }
 });
 
 // Serve static files from ./public, mounted under the base path

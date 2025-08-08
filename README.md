@@ -1,24 +1,50 @@
-# Stuart Speaks - Text-to-Speech Backend
+# Stuart Speaks v0.8.0 - Advanced Text-to-Speech Application
 
-A Node.js Express application that provides text-to-speech functionality using Fish.Audio API with email-based authentication, persistent caching, and user management.
+A modern, feature-rich Node.js Express application that provides intelligent text-to-speech functionality using Fish.Audio API. Features email authentication, smart chunking, predictive typing, and a beautiful Progressive Web App (PWA) interface.
 
-## Features
+## ✨ Features
 
-### Core Functionality
-- **Text-to-Speech**: Convert text to speech using Fish.Audio API
-- **Email Authentication**: Secure access with 6-digit verification codes
-- **Persistent Audio Cache**: Repeated text serves instantly from cache
-- **Text History**: Autofill from previous requests
-- **User Phrases**: Customizable quick-access phrases
-- **Session Management**: 30-day persistent sessions
+### 🎵 Advanced Audio Processing
+- **Smart Chunking System**: Long texts automatically split into sentences for parallel processing
+- **Immediate Playback**: First chunk plays instantly while others generate
+- **Audio Combination**: Chunks combined into single optimized audio files
+- **Invisible Player**: Clean TTS experience without visual audio controls
+- **1000 Character Limit**: 4x increase from v0.5.0 thanks to chunking technology
 
-### Technical Features
-- **Per-user isolation**: All data (cache, history, phrases) is user-specific
-- **File-based sessions**: Survive server restarts
-- **Character limits**: 250 characters max with visual counter
-- **Smart phrase insertion**: Insert at cursor position
-- **Share functionality**: Generate shareable audio URLs
-- **Real-time caching**: Audio files cached to disk automatically
+### 🧠 Intelligent Interface
+- **Predictive Typing**: Smart autocomplete searching phrases and recent texts
+- **Priority Search**: Common phrases ranked higher than recent texts
+- **Keyboard Navigation**: Arrow keys, Enter, and Escape support
+- **Triple Space Shortcut**: Quick speech trigger with three spaces
+- **Modern UI**: Beautiful warm beige design with clean layout
+
+### 🔐 User Management
+- **Email Authentication**: Secure 6-digit verification codes
+- **Development Mode**: Bypass with code "123456" for testing
+- **Per-User Isolation**: All data completely separated by user
+- **30-Day Sessions**: Persistent login across device restarts
+- **Session File Storage**: Survives server restarts
+
+### 📱 Progressive Web App (PWA)
+- **Native App Experience**: Install on desktop and mobile
+- **Offline Capability**: Service worker for basic offline functionality
+- **Responsive Design**: Works perfectly on all screen sizes
+- **App Icons**: Custom Stuart icon for home screen
+- **Standalone Mode**: Opens like native app without browser UI
+
+### 💾 Intelligent Caching
+- **Real-Time Audio Cache**: Instant playback for repeated text
+- **Combined Audio Cache**: Optimized files marked with 🎵 badges
+- **Text History**: Smart autofill from previous requests
+- **User Phrases**: Customizable quick-access phrase library
+- **Persistent Storage**: All caches survive server restarts
+
+### 🎯 User Experience
+- **Clean Tabs Interface**: Organized Common Phrases and Recent Texts
+- **Smart Visual Indicators**: Green borders for combined audio
+- **Character Counter**: Live count with color-coded warnings
+- **Phrase Management**: Add, remove, reset phrase collections
+- **Share Functionality**: Generate public shareable audio URLs
 
 ## Architecture
 
@@ -54,9 +80,11 @@ tts-backend/
 - `GET /stuartvoice/api/auth/status` - Check authentication status
 
 #### Text-to-Speech
-- `POST /stuartvoice/api/tts` - Convert text to speech
+- `POST /stuartvoice/api/tts` - Convert text to speech (supports chunking)
 - `GET /stuartvoice/api/autofill` - Get text history for autofill
 - `DELETE /stuartvoice/api/history/:text` - Delete item from history
+- `POST /stuartvoice/api/cache-combined` - Cache combined audio chunks
+- `GET /stuartvoice/api/check-combined` - Check if combined audio exists
 
 #### Phrases Management
 - `GET /stuartvoice/api/phrases` - Get user phrases
@@ -198,37 +226,56 @@ tts-backend/
 2. **Enter email** and request verification code
 3. **Check email** for 6-digit code (expires in 10 minutes)
 4. **Enter code** to authenticate
-5. **Type text** (up to 250 characters)
+5. **Type text** (up to 1000 characters)
 6. **Click "Speak"** to generate audio
 7. **Use phrase buttons** for quick access
 8. **Share audio** with generated links
 
 ### Features in Detail
 
+#### Smart Chunking System
+- **1 sentence**: No chunking needed
+- **2 sentences**: Split evenly
+- **3 sentences**: First alone, then combine 2nd and 3rd
+- **4+ sentences**: Dynamic batching for optimal processing
+- **Parallel processing**: First chunk plays while others generate
+- **Audio combination**: Chunks merged into single optimized files
+- **Visual indicators**: Green borders show successfully combined audio
+
+#### Predictive Typing
+- **Smart autocomplete**: Dropdown with keyboard navigation
+- **Priority search order**: Common phrases → Recent texts → Standard suggestions
+- **Keyboard shortcuts**: Arrow keys, Enter to select, Escape to close
+- **Triple space trigger**: Type three spaces to automatically speak
+- **Visual indicators**: Color-coded badges (green for phrases, yellow for recent)
+
 #### Text History
 - Automatically saves last 50 text entries
-- Provides autofill suggestions
+- Provides intelligent autofill suggestions
 - Click to reuse previous text
 - Delete unwanted history items
+- Integrated with predictive typing system
 
 #### Phrase Management
 - Default phrases loaded for new users
-- Add custom phrases
-- Delete individual phrases
-- Reset to defaults or clear all
-- Phrases insert at cursor position
+- Add custom phrases with visual feedback
+- Delete individual phrases with confirmation
+- Reset to defaults or clear all phrases
+- Phrases insert at cursor position or fill entire text field
 
 #### Audio Caching
-- Automatically caches generated audio
-- Instant playback for repeated text
-- Per-user cache isolation
-- Persistent across sessions
+- **Individual chunks**: Cached for instant replay
+- **Combined audio**: Optimized single files with 🎵 badges
+- **Smart reuse**: Automatic detection of repeated text
+- **Per-user isolation**: Complete data separation
+- **Persistent storage**: Survives server restarts
 
 #### Sharing
 - Generate shareable audio URLs
 - Public access (no authentication required)
 - Base64url encoded text in URL
 - Real-time audio generation for shares
+- Works with both chunked and single audio files
 
 ## Monitoring and Maintenance
 
@@ -264,21 +311,33 @@ rm -rf /var/www/stuart-speaks/cache/audio/user@domain.com/
 - **Email not received**: Check SMTP settings and ProtonMail token
 - **Code expired**: Codes expire after 10 minutes
 - **Invalid code**: Ensure correct 6-digit code entry
+- **Development bypass**: Use code "123456" in development mode
 
-#### TTS Generation Issues
+#### TTS and Chunking Issues
 - **Fish.Audio API errors**: Verify API key and model ID
 - **500 errors**: Check Fish.Audio account status and credits
 - **Network issues**: Ensure server can reach api.fish.audio
+- **Chunking problems**: Check console logs for detailed chunking information
+- **Audio not combining**: Verify Web Audio API support in browser
+- **First chunk delays**: Normal behavior - subsequent chunks process in parallel
+
+#### Interface Issues
+- **Autocomplete not working**: Check for JavaScript errors in browser console
+- **Triple space not triggering**: Ensure text input has focus
+- **Character limit**: Now 1000 characters (up from 250 in v0.5.0)
+- **Mobile responsiveness**: Refresh page if layout appears broken
 
 #### Performance Issues
-- **Slow response**: Check Fish.Audio API latency
-- **High memory usage**: Monitor cache size and PM2 memory
+- **Slow response**: Check Fish.Audio API latency and chunking efficiency
+- **High memory usage**: Monitor cache size, combined audio files, and PM2 memory
 - **Port conflicts**: Ensure port 3002 is available
+- **Large audio files**: Combined chunks may be larger but provide better UX
 
 #### Deployment Issues
 - **SSH connection failed**: Check SSH key permissions and server access
 - **Port already in use**: Kill conflicting processes
 - **Application crashes**: Check PM2 logs and environment variables
+- **Missing dependencies**: Ensure multer is installed for v0.8.0
 
 ### Health Checks
 ```bash

@@ -22,10 +22,161 @@ const newPhraseInput      = document.getElementById("newPhraseInput");
 const addPhraseBtn        = document.getElementById("addPhraseBtn");
 const removeAllPhrasesBtn = document.getElementById("removeAllPhrasesBtn");
 const resetPhrasesBtn     = document.getElementById("resetPhrasesBtn");
+const autocompleteDropdown = document.getElementById("autocompleteDropdown");
+
+// Autocomplete state
+let currentSuggestions = [];
+let selectedSuggestionIndex = -1;
+let userPhrasesList = [];
+let userRecentTexts = [];
+
+// Tab functionality
+document.querySelectorAll('.tab-header').forEach(header => {
+  header.addEventListener('click', () => {
+    // Remove active class from all headers and content
+    document.querySelectorAll('.tab-header').forEach(h => h.classList.remove('active'));
+    document.querySelectorAll('.tab-content').forEach(c => c.classList.remove('active'));
+    
+    // Add active class to clicked header
+    header.classList.add('active');
+    
+    // Show corresponding content
+    const tabId = header.getAttribute('data-tab');
+    document.getElementById(`${tabId}-tab`).classList.add('active');
+  });
+});
+
+// Filter functionality removed - now handled by autocomplete in main input
 
 // Authentication state
 let isAuthenticated = false;
 let currentUserEmail = null;
+
+// Autocomplete functionality
+function getAutocompleteSuggestions(input) {
+  if (!input || input.length < 2) return [];
+  
+  const query = input.toLowerCase().trim();
+  const suggestions = [];
+  
+  // 1. Search Common Phrases first
+  userPhrasesList.forEach(phrase => {
+    if (phrase.toLowerCase().includes(query)) {
+      suggestions.push({
+        text: phrase,
+        type: 'phrase',
+        priority: phrase.toLowerCase().startsWith(query) ? 1 : 2
+      });
+    }
+  });
+  
+  // 2. Search Recent Texts second
+  userRecentTexts.forEach(text => {
+    if (text.toLowerCase().includes(query) && !suggestions.some(s => s.text === text)) {
+      suggestions.push({
+        text: text,
+        type: 'recent',
+        priority: text.toLowerCase().startsWith(query) ? 3 : 4
+      });
+    }
+  });
+  
+  // Sort by priority (1 = phrase starts with, 2 = phrase contains, 3 = recent starts with, 4 = recent contains)
+  suggestions.sort((a, b) => a.priority - b.priority);
+  
+  // Limit to top 8 suggestions
+  return suggestions.slice(0, 8);
+}
+
+function showAutocompleteSuggestions(suggestions) {
+  if (suggestions.length === 0) {
+    autocompleteDropdown.style.display = 'none';
+    return;
+  }
+  
+  autocompleteDropdown.innerHTML = '';
+  currentSuggestions = suggestions;
+  selectedSuggestionIndex = -1;
+  
+  suggestions.forEach((suggestion, index) => {
+    const suggestionEl = document.createElement('div');
+    suggestionEl.className = 'autocomplete-suggestion';
+    suggestionEl.dataset.index = index;
+    
+    const typeEl = document.createElement('span');
+    typeEl.className = `suggestion-type ${suggestion.type}`;
+    typeEl.textContent = suggestion.type === 'phrase' ? 'Phrase' : 'Recent';
+    
+    const textEl = document.createElement('span');
+    textEl.className = 'suggestion-text';
+    textEl.textContent = suggestion.text;
+    
+    suggestionEl.appendChild(typeEl);
+    suggestionEl.appendChild(textEl);
+    
+    suggestionEl.addEventListener('click', () => {
+      selectSuggestion(suggestion.text);
+    });
+    
+    autocompleteDropdown.appendChild(suggestionEl);
+  });
+  
+  autocompleteDropdown.style.display = 'block';
+}
+
+function selectSuggestion(text) {
+  textArea.value = text;
+  updateCharCounter();
+  autocompleteDropdown.style.display = 'none';
+  textArea.focus();
+  
+  // Move cursor to end
+  textArea.setSelectionRange(text.length, text.length);
+}
+
+function hideAutocomplete() {
+  autocompleteDropdown.style.display = 'none';
+  selectedSuggestionIndex = -1;
+}
+
+function handleKeyNavigation(e) {
+  if (autocompleteDropdown.style.display === 'none') return false;
+  
+  const suggestions = autocompleteDropdown.querySelectorAll('.autocomplete-suggestion');
+  
+  if (e.key === 'ArrowDown') {
+    e.preventDefault();
+    selectedSuggestionIndex = Math.min(selectedSuggestionIndex + 1, suggestions.length - 1);
+    updateSelectedSuggestion(suggestions);
+    return true;
+  } else if (e.key === 'ArrowUp') {
+    e.preventDefault();
+    selectedSuggestionIndex = Math.max(selectedSuggestionIndex - 1, -1);
+    updateSelectedSuggestion(suggestions);
+    return true;
+  } else if (e.key === 'Enter' && selectedSuggestionIndex >= 0) {
+    e.preventDefault();
+    const selectedText = currentSuggestions[selectedSuggestionIndex].text;
+    selectSuggestion(selectedText);
+    return true;
+  } else if (e.key === 'Escape') {
+    hideAutocomplete();
+    return true;
+  }
+  
+  return false;
+}
+
+function updateSelectedSuggestion(suggestions) {
+  suggestions.forEach((el, index) => {
+    if (index === selectedSuggestionIndex) {
+      el.classList.add('selected');
+      el.scrollIntoView({ block: 'nearest' });
+    } else {
+      el.classList.remove('selected');
+    }
+  });
+}
 
 // Store local autofill list for smart merging
 let localAutofillList = [];
@@ -179,6 +330,9 @@ async function loadAutofill(showLoadingIndicator = false) {
     // Update local list
     localAutofillList = [...serverList];
     
+    // Update autocomplete data
+    userRecentTexts = [...serverList];
+    
     // Show notification if new items found
     if (newItems.length > 0 && showLoadingIndicator) {
       showSyncNotification(`${newItems.length} new text${newItems.length > 1 ? 's' : ''} found from other devices`);
@@ -188,17 +342,80 @@ async function loadAutofill(showLoadingIndicator = false) {
     autofillContainer.innerHTML = '';
     
     if (data.history && data.history.length > 0) {
+      // Check which texts have combined audio (batch request for efficiency)
+      const checkPromises = data.history.map(async (text) => {
+        try {
+          const resp = await fetch('api/check-combined', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ text })
+          });
+          const result = await resp.json();
+          return { text, hasCombined: result.exists };
+        } catch (err) {
+          return { text, hasCombined: false };
+        }
+      });
+      
+      const combinedCheckResults = await Promise.all(checkPromises);
+      const combinedMap = new Map(combinedCheckResults.map(r => [r.text, r.hasCombined]));
+      
       data.history.forEach((text) => {
         const entry = document.createElement('div');
-        entry.className = 'log-entry';
-        entry.style.cssText = 'border: 1px solid #e0e0e0; border-radius: 8px; padding: 10px; margin: 8px 0; background: #fafafa;';
+        entry.className = 'recent-item';
+        const hasCombined = combinedMap.get(text);
+        
+        if (hasCombined) {
+          entry.classList.add('has-combined');
+          
+          // Add combined audio badge
+          const badge = document.createElement('div');
+          badge.className = 'combined-badge';
+          badge.textContent = '🎵 Combined';
+          badge.title = 'This text has optimized combined audio';
+          entry.appendChild(badge);
+        }
 
-        // Play cached button (if audio exists in cache)
+        // Play cached button (prefers combined audio if available)
         const playCachedBtn = document.createElement('button');
+        playCachedBtn.className = 'action-button play-btn';
         playCachedBtn.textContent = '▶️';
+        playCachedBtn.title = 'Play audio';
         playCachedBtn.addEventListener('click', async () => {
-          // Try to get cached audio by making TTS request (will serve from cache if available)
           try {
+            // First check if combined audio exists for this text
+            const checkResp = await fetch('api/check-combined', {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({ text })
+            });
+            
+            if (checkResp.ok) {
+              const checkData = await checkResp.json();
+              
+              if (checkData.exists) {
+                console.log('🎵 Playing combined audio for:', text.substring(0, 50));
+                // Play combined audio
+                const combinedResp = await fetch(`api/combined/${checkData.hash}`);
+                if (combinedResp.ok) {
+                  const blob = await combinedResp.blob();
+                  const url = URL.createObjectURL(blob);
+                  playAudio(url);
+                  
+                  // Add visual indicator that this is combined audio
+                  playCachedBtn.style.backgroundColor = '#4CAF50';
+                  playCachedBtn.title = 'Playing combined audio';
+                  setTimeout(() => {
+                    playCachedBtn.style.backgroundColor = '';
+                    playCachedBtn.title = '';
+                  }, 2000);
+                  return;
+                }
+              }
+            }
+            
+            // Fallback to individual cached chunks
+            console.log('🎵 Playing individual cached audio for:', text.substring(0, 50));
             const resp = await fetch('api/tts', {
               method: 'POST',
               headers: { 'Content-Type': 'application/json' },
@@ -208,170 +425,66 @@ async function loadAutofill(showLoadingIndicator = false) {
             if (resp.ok) {
               const blob = await resp.blob();
               const url = URL.createObjectURL(blob);
-              player.src = url;
-              player.hidden = false;
-              player.play();
+              playAudio(url);
             }
           } catch (err) {
             console.error('Error playing cached audio:', err);
           }
         });
 
-        // Resubmit button (generate new audio)
-        const resubmitBtn = document.createElement('button');
-        resubmitBtn.textContent = '↩️';
-        resubmitBtn.addEventListener('click', async () => {
-          // Force fresh generation by bypassing cache
-          try {
-            btn.disabled = true;
-            const resp = await fetch('api/tts', {
-              method: 'POST',
-              headers: { 'Content-Type': 'application/json' },
-              body: JSON.stringify({ text, bypassCache: true })
-            });
-            
-            if (resp.status === 401) {
-              isAuthenticated = false;
-              showAuthSection();
-              return;
-            }
-            
-            if (resp.ok) {
-              const blob = await resp.blob();
-              const url = URL.createObjectURL(blob);
-              player.src = url;
-              player.hidden = false;
-              await player.play();
-              
-              // Refresh autofill to show updated cache
-              loadAutofill();
-            }
-          } catch (err) {
-            console.error('Error resubmitting audio:', err);
-          } finally {
-            btn.disabled = false;
-          }
-        });
-
-        // Fill text area button
+        // Edit/Fill text button
         const fillBtn = document.createElement('button');
+        fillBtn.className = 'action-button edit-btn';
         fillBtn.textContent = '📝';
+        fillBtn.title = 'Edit text';
         fillBtn.addEventListener('click', () => {
           textArea.value = text;
           updateCharCounter();
           textArea.focus();
         });
 
-        // Add to phrases button
-        const addToPhraseBtn = document.createElement('button');
-        addToPhraseBtn.textContent = '➕';
-        addToPhraseBtn.title = 'Add to phrases';
-        addToPhraseBtn.addEventListener('click', async () => {
-          try {
-            const resp = await fetch('api/phrases', {
-              method: 'POST',
-              headers: { 'Content-Type': 'application/json' },
-              body: JSON.stringify({ phrase: text })
-            });
-            
-            const data = await resp.json();
-            
-            if (data.success) {
-              loadPhrases(); // Reload phrases to show the new one
-              // Show brief success indicator
-              addToPhraseBtn.textContent = '✓';
-              addToPhraseBtn.style.color = 'green';
-              setTimeout(() => {
-                addToPhraseBtn.textContent = '➕';
-                addToPhraseBtn.style.color = '';
-              }, 1500);
-            } else {
-              alert(data.error || 'Failed to add to phrases');
-            }
-          } catch (err) {
-            console.error('Error adding to phrases:', err);
-            alert('Error adding to phrases');
-          }
-        });
-
-        // Share audio button
-        const shareAudioBtn = document.createElement('button');
-        shareAudioBtn.textContent = '🔗';
-        shareAudioBtn.title = 'Copy shareable link';
-        shareAudioBtn.addEventListener('click', async () => {
-          try {
-            // Create a base64url-encoded share ID from the text
-            const shareId = btoa(text).replace(/\+/g, '-').replace(/\//g, '_').replace(/=/g, '');
-            
-            // Generate shareable URL
-            const shareUrl = `${window.location.origin}/stuartvoice/share/${shareId}`;
-            
-            // Copy to clipboard
-            await navigator.clipboard.writeText(shareUrl);
-            
-            // Show success feedback
-            shareAudioBtn.textContent = '✓';
-            shareAudioBtn.style.color = 'green';
-            setTimeout(() => {
-              shareAudioBtn.textContent = '🔗';
-              shareAudioBtn.style.color = '';
-            }, 1500);
-            
-            // Optional: show a brief notification
-            showSyncNotification('Shareable link copied to clipboard!');
-            
-          } catch (err) {
-            console.error('Error creating share link:', err);
-            
-            // Fallback: show the URL in an alert if clipboard fails
-            const shareId = btoa(text).replace(/\+/g, '-').replace(/\//g, '_').replace(/=/g, '');
-            const shareUrl = `${window.location.origin}/stuartvoice/share/${shareId}`;
-            prompt('Copy this link to share the audio:', shareUrl);
-          }
-        });
-
         // Remove from history button
         const removeBtn = document.createElement('button');
+        removeBtn.className = 'action-button delete-btn';
         removeBtn.textContent = '❌';
+        removeBtn.title = 'Delete';
         removeBtn.addEventListener('click', async () => {
-          try {
-            const resp = await fetch(`api/history/${encodeURIComponent(text)}`, {
-              method: 'DELETE'
-            });
-            
-            if (resp.ok) {
-              entry.remove();
-              console.log('Item deleted successfully');
-            } else {
-              console.error('Failed to delete item');
+          if (confirm('Delete this text from history?')) {
+            try {
+              const resp = await fetch(`api/history/${encodeURIComponent(text)}`, {
+                method: 'DELETE'
+              });
+              
+              if (resp.ok) {
+                entry.remove();
+                console.log('Item deleted successfully');
+              } else {
+                console.error('Failed to delete item');
+              }
+            } catch (err) {
+              console.error('Error deleting item:', err);
             }
-          } catch (err) {
-            console.error('Error deleting item:', err);
           }
         });
 
-        // Text span (now at the top)
+        // Text span
         const textSpan = document.createElement('div');
-        textSpan.className = 'log-text';
+        textSpan.className = 'recent-text';
         textSpan.textContent = text;
         textSpan.title = text; // Full text on hover
-        textSpan.style.cssText = 'margin-bottom: 8px; font-weight: 500; color: #333; word-wrap: break-word;';
 
         // Button container
         const buttonContainer = document.createElement('div');
-        buttonContainer.style.cssText = 'display: flex; gap: 4px; flex-wrap: wrap;';
+        buttonContainer.className = 'action-buttons';
 
-        // Append in order: text first, then buttons
-        entry.appendChild(textSpan);
-        entry.appendChild(buttonContainer);
-        
         // Add buttons to container
         buttonContainer.appendChild(playCachedBtn);
-        buttonContainer.appendChild(resubmitBtn);
         buttonContainer.appendChild(fillBtn);
-        buttonContainer.appendChild(addToPhraseBtn);
-        buttonContainer.appendChild(shareAudioBtn);
         buttonContainer.appendChild(removeBtn);
+
+        // Append to entry
+        entry.appendChild(textSpan);
+        entry.appendChild(buttonContainer);
 
         autofillContainer.appendChild(entry);
       });
@@ -436,6 +549,9 @@ async function loadPhrases() {
       });
     }
     
+    // Update autocomplete data
+    userPhrasesList = phrases;
+    
     // Update Remove All button state
     updateRemoveAllButtonState(phrases.length);
     
@@ -458,11 +574,11 @@ function updateRemoveAllButtonState(phraseCount) {
 
 function createPhraseButton(phrase) {
   const phraseContainer = document.createElement("div");
-  phraseContainer.style.cssText = "display:inline-block;margin:4px;position:relative;";
+  phraseContainer.className = "phrase-container";
   
   const phraseBtn = document.createElement("button");
+  phraseBtn.className = "phrase-button";
   phraseBtn.textContent = phrase;
-  phraseBtn.style.cssText = "padding:8px 20px 8px 12px;position:relative;";
   phraseBtn.addEventListener("click", () => {
     // Add space after phrase if it doesn't already end with one
     const phraseWithSpace = phrase.endsWith(' ') ? phrase : phrase + ' ';
@@ -470,12 +586,14 @@ function createPhraseButton(phrase) {
   });
   
   const removeBtn = document.createElement("button");
+  removeBtn.className = "phrase-remove-btn";
   removeBtn.textContent = "×";
-  removeBtn.style.cssText = "position:absolute;top:-2px;right:-2px;width:16px;height:16px;font-size:12px;padding:0;background:#ff6b6b;color:white;border:none;border-radius:50%;cursor:pointer;display:flex;align-items:center;justify-content:center;line-height:1;";
   removeBtn.title = "Remove this phrase";
   removeBtn.addEventListener("click", async (e) => {
     e.stopPropagation();
-    await removePhrase(phrase);
+    if (confirm(`Remove phrase: "${phrase}"?`)) {
+      await removePhrase(phrase);
+    }
   });
   
   phraseContainer.appendChild(phraseBtn);
@@ -592,9 +710,9 @@ function insertTextAtCursor(text) {
   
   // Check if adding text would exceed character limit
   const newText = currentValue.slice(0, start) + text + currentValue.slice(end);
-  if (newText.length > 250) {
+  if (newText.length > 1000) {
     // Truncate if it would exceed limit
-    const availableSpace = 250 - (currentValue.length - (end - start));
+    const availableSpace = 1000 - (currentValue.length - (end - start));
     if (availableSpace <= 0) return; // No space available
     text = text.substring(0, availableSpace);
   }
@@ -614,61 +732,527 @@ function insertTextAtCursor(text) {
 // Character counter functionality
 function updateCharCounter() {
   const currentLength = textArea.value.length;
-  charCounter.textContent = `${currentLength}/250`;
+  charCounter.textContent = `${currentLength}/1000`;
   
   // Change color when approaching limit
-  if (currentLength > 225) {
+  if (currentLength > 900) {
     charCounter.style.color = '#d32f2f'; // Red
-  } else if (currentLength > 200) {
+  } else if (currentLength > 800) {
     charCounter.style.color = '#f57c00'; // Orange
   } else {
     charCounter.style.color = '#666'; // Default gray
   }
 }
 
-// Update counter on input
-textArea.addEventListener('input', updateCharCounter);
+// Update counter on input and handle autocomplete
+textArea.addEventListener('input', (e) => {
+  // Handle triple space first (it may modify the text)
+  if (handleTripleSpace(e)) {
+    return; // Triple space triggered speech, don't show autocomplete
+  }
+  
+  updateCharCounter();
+  
+  const currentText = textArea.value;
+  const suggestions = getAutocompleteSuggestions(currentText);
+  showAutocompleteSuggestions(suggestions);
+});
 
-// Text-to-Speech Logic
+// Handle keyboard navigation for autocomplete
+textArea.addEventListener('keydown', (e) => {
+  // Handle autocomplete navigation first
+  if (handleKeyNavigation(e)) {
+    return; // If autocomplete handled the key, don't continue
+  }
+  
+  // Handle existing triple-space and enter logic
+  if (e.key === "Enter" && !e.shiftKey) {
+    e.preventDefault();
+    hideAutocomplete();
+    doSpeak();
+  }
+});
 
+// Hide autocomplete when clicking outside
+document.addEventListener('click', (e) => {
+  if (!e.target.closest('.text-input-section')) {
+    hideAutocomplete();
+  }
+});
+
+// Triple space shortcut to trigger speak (integrated into main input handler)
+let lastKeyPresses = [];
+
+function handleTripleSpace(e) {
+  // Track last few characters for triple space detection
+  const inputType = e.inputType;
+  const data = e.data;
+  
+  if (inputType === 'insertText' && data === ' ') {
+    lastKeyPresses.push(' ');
+    // Keep only last 3 key presses
+    if (lastKeyPresses.length > 3) {
+      lastKeyPresses.shift();
+    }
+    
+    // Check for triple space
+    if (lastKeyPresses.length === 3 && lastKeyPresses.every(key => key === ' ')) {
+      console.log('🎯 Triple space detected - triggering speak!');
+      
+      // Hide autocomplete
+      hideAutocomplete();
+      
+      // Remove the triple spaces from the text
+      const currentText = textArea.value;
+      textArea.value = currentText.slice(0, -3).trimEnd(); // Remove 3 spaces and any trailing whitespace
+      updateCharCounter();
+      
+      // Trigger speak if there's text
+      if (textArea.value.trim()) {
+        doSpeak();
+      }
+      
+      // Reset tracking
+      lastKeyPresses = [];
+      return true; // Indicate triple space was handled
+    }
+  } else if (inputType === 'insertText' || inputType === 'insertCompositionText') {
+    // Reset on any non-space input
+    lastKeyPresses = [];
+  }
+  
+  return false;
+}
+
+// Text-to-Speech Logic with Chunking
+
+// Audio chunk management
+let audioQueue = [];
+let isPlayingQueue = false;
+let currentChunks = [];
+
+// Centralized audio player management
+function playAudio(audioUrl) {
+  player.src = audioUrl;
+  // Keep player hidden - no need to show controls for TTS
+  player.hidden = true;
+  
+  return player.play();
+}
+
+// Smart text chunking function with detailed logging
+function chunkText(text) {
+  console.log('🔍 CHUNKING ANALYSIS:');
+  console.log(`📝 Original text: "${text}"`);
+  
+  const sentences = text.match(/[^\.!?]+[\.!?]+/g) || [text];
+  console.log(`📊 Detected ${sentences.length} sentence(s):`, sentences);
+  
+  let chunks = [];
+  let strategy = '';
+  
+  if (sentences.length === 1) {
+    chunks = [text];
+    strategy = 'No chunking (single sentence)';
+  } else if (sentences.length === 2) {
+    chunks = sentences;
+    strategy = 'Split into 2 chunks';
+  } else if (sentences.length === 3) {
+    chunks = [sentences[0], sentences.slice(1).join(' ')];
+    strategy = '[sentence 1] + [sentences 2-3]';
+  } else {
+    // 4+ sentences: Dynamic batching (2-3 sentences per chunk)
+    for (let i = 0; i < sentences.length; i += 2) {
+      const chunk = sentences.slice(i, i + 2).join(' ');
+      chunks.push(chunk);
+    }
+    strategy = 'Dynamic batching (2-3 sentences per chunk)';
+  }
+  
+  console.log(`🎯 Strategy: ${strategy}`);
+  console.log(`📦 Chunks (${chunks.length}):`, chunks.map((chunk, i) => `${i+1}. "${chunk}"`));
+  console.log('');
+  
+  return chunks;
+}
+
+// Play audio queue sequentially with logging
+async function playAudioQueue() {
+  if (isPlayingQueue || audioQueue.length === 0) return;
+  
+  console.log('🎵 REMAINING CHUNKS PLAYBACK STARTED');
+  console.log(`▶️ Playing ${audioQueue.length} remaining audio chunks sequentially...`);
+  
+  isPlayingQueue = true;
+  
+  for (let i = 0; i < audioQueue.length; i++) {
+    const audioUrl = audioQueue[i];
+    console.log(`🎶 Playing remaining chunk ${i + 1}/${audioQueue.length}`);
+    
+    try {
+      await new Promise((resolve, reject) => {
+        player.src = audioUrl;
+        player.hidden = true; // Keep hidden during queue playback too
+        
+        const onEnded = () => {
+          player.removeEventListener('ended', onEnded);
+          player.removeEventListener('error', onError);
+          resolve();
+        };
+        const onError = (err) => {
+          player.removeEventListener('ended', onEnded);
+          player.removeEventListener('error', onError);
+          reject(err);
+        };
+        
+        player.addEventListener('ended', onEnded);
+        player.addEventListener('error', onError);
+        player.play().catch(reject);
+      });
+      console.log(`✅ Remaining chunk ${i + 1} completed`);
+    } catch (err) {
+      console.error(`❌ Error playing remaining chunk ${i + 1}:`, err);
+    }
+  }
+  
+  console.log('🎵 ALL CHUNKS PLAYBACK COMPLETED');
+  isPlayingQueue = false;
+  
+  // Auto-hide will be handled by the last audio's ended event
+  // Clear the queue after completion
+  audioQueue = [];
+}
+
+// Real audio combination using Web Audio API
+async function combineAudioChunks(chunkResults, originalText) {
+  console.log('🔧 AUDIO COMBINATION STARTED');
+  console.log(`🎵 Combining ${chunkResults.length} audio chunks into single file...`);
+  
+  try {
+    // Create audio context with browser compatibility
+    let audioContext;
+    if (window.AudioContext) {
+      audioContext = new AudioContext();
+    } else if (window.webkitAudioContext) {
+      audioContext = new window.webkitAudioContext();
+    } else {
+      throw new Error('Web Audio API not supported');
+    }
+    
+    const audioBuffers = [];
+    
+    // Decode all audio chunks
+    for (let i = 0; i < chunkResults.length; i++) {
+      console.log(`📡 Decoding chunk ${i + 1}/${chunkResults.length}...`);
+      const arrayBuffer = await chunkResults[i].blob.arrayBuffer();
+      const audioBuffer = await audioContext.decodeAudioData(arrayBuffer);
+      audioBuffers.push(audioBuffer);
+    }
+    
+    // Calculate total duration and create combined buffer
+    const totalDuration = audioBuffers.reduce((sum, buffer) => sum + buffer.duration, 0);
+    const sampleRate = audioBuffers[0].sampleRate;
+    const numberOfChannels = audioBuffers[0].numberOfChannels;
+    const totalLength = Math.floor(totalDuration * sampleRate);
+    
+    console.log(`📊 Combined audio stats: ${totalDuration.toFixed(2)}s, ${sampleRate}Hz, ${numberOfChannels} channels`);
+    
+    // Create combined buffer
+    const combinedBuffer = audioContext.createBuffer(numberOfChannels, totalLength, sampleRate);
+    
+    let offset = 0;
+    for (let i = 0; i < audioBuffers.length; i++) {
+      const buffer = audioBuffers[i];
+      
+      for (let channel = 0; channel < numberOfChannels; channel++) {
+        const combinedChannelData = combinedBuffer.getChannelData(channel);
+        const bufferChannelData = buffer.getChannelData(channel);
+        
+        for (let j = 0; j < buffer.length; j++) {
+          combinedChannelData[offset + j] = bufferChannelData[j];
+        }
+      }
+      
+      offset += buffer.length;
+      console.log(`✅ Merged chunk ${i + 1}, offset now at ${(offset / sampleRate).toFixed(2)}s`);
+    }
+    
+    console.log('🔄 Converting to MP3 format...');
+    
+    // Convert combined buffer to MP3 using OfflineAudioContext
+    const offlineContext = new OfflineAudioContext(numberOfChannels, totalLength, sampleRate);
+    const source = offlineContext.createBufferSource();
+    source.buffer = combinedBuffer;
+    source.connect(offlineContext.destination);
+    source.start();
+    
+    const renderedBuffer = await offlineContext.startRendering();
+    
+    // Convert to WAV (since MP3 encoding requires additional libraries)
+    const wavBlob = audioBufferToWav(renderedBuffer);
+    
+    console.log(`💾 Combined audio created: ${(wavBlob.size / 1024).toFixed(1)}KB`);
+    
+    // Cache combined audio on backend
+    await cacheCombinedAudio(originalText, wavBlob);
+    
+    console.log('✅ AUDIO COMBINATION COMPLETED');
+    
+  } catch (error) {
+    console.error('❌ Audio combination failed:', error);
+    console.error('Error details:', error.message, error.stack);
+    
+    // Fallback: still try to cache individual chunks info
+    showSyncNotification('Audio played successfully, combination had issues');
+  }
+}
+
+// Helper function to convert AudioBuffer to WAV
+function audioBufferToWav(audioBuffer) {
+  const numChannels = audioBuffer.numberOfChannels;
+  const sampleRate = audioBuffer.sampleRate;
+  const format = 1; // PCM
+  const bitDepth = 16;
+  
+  const bytesPerSample = bitDepth / 8;
+  const blockAlign = numChannels * bytesPerSample;
+  const byteRate = sampleRate * blockAlign;
+  const dataSize = audioBuffer.length * blockAlign;
+  const bufferSize = 44 + dataSize;
+  
+  const arrayBuffer = new ArrayBuffer(bufferSize);
+  const view = new DataView(arrayBuffer);
+  
+  // WAV header
+  const writeString = (offset, string) => {
+    for (let i = 0; i < string.length; i++) {
+      view.setUint8(offset + i, string.charCodeAt(i));
+    }
+  };
+  
+  writeString(0, 'RIFF');
+  view.setUint32(4, bufferSize - 8, true);
+  writeString(8, 'WAVE');
+  writeString(12, 'fmt ');
+  view.setUint32(16, 16, true);
+  view.setUint16(20, format, true);
+  view.setUint16(22, numChannels, true);
+  view.setUint32(24, sampleRate, true);
+  view.setUint32(28, byteRate, true);
+  view.setUint16(32, blockAlign, true);
+  view.setUint16(34, bitDepth, true);
+  writeString(36, 'data');
+  view.setUint32(40, dataSize, true);
+  
+  // Convert audio data
+  let offset = 44;
+  for (let i = 0; i < audioBuffer.length; i++) {
+    for (let channel = 0; channel < numChannels; channel++) {
+      const sample = Math.max(-1, Math.min(1, audioBuffer.getChannelData(channel)[i]));
+      view.setInt16(offset, sample * 0x7FFF, true);
+      offset += 2;
+    }
+  }
+  
+  return new Blob([arrayBuffer], { type: 'audio/wav' });
+}
+
+// Send combined audio to backend for caching
+async function cacheCombinedAudio(text, audioBlob) {
+  console.log('📤 Sending combined audio to backend for caching...');
+  
+  try {
+    const formData = new FormData();
+    formData.append('audio', audioBlob, 'combined.wav');
+    formData.append('text', text);
+    
+    const response = await fetch('api/cache-combined', {
+      method: 'POST',
+      body: formData
+    });
+    
+    if (response.ok) {
+      const result = await response.json();
+      console.log(`✅ Combined audio cached successfully (${(result.size / 1024).toFixed(1)}KB)`);
+      
+      // Now add the original text to history since combination succeeded
+      await addToHistory(text);
+      
+      // Update interface to show combined version
+      showSyncNotification('Combined audio cached successfully! 🎵');
+      
+      // Refresh autofill to show the new combined version
+      setTimeout(() => loadAutofill(), 1000);
+    } else {
+      console.error('❌ Failed to cache combined audio:', response.status);
+      
+      // Fallback: still add to history even if caching failed
+      await addToHistory(text);
+      setTimeout(() => loadAutofill(), 500);
+    }
+  } catch (error) {
+    console.error('❌ Error caching combined audio:', error);
+    
+    // Fallback: still add to history even if caching failed
+    await addToHistory(text);
+    setTimeout(() => loadAutofill(), 500);
+  }
+}
+
+// Helper function to add text to history
+async function addToHistory(text) {
+  try {
+    console.log('📝 Adding original text to history:', text.substring(0, 50) + '...');
+    await fetch('api/tts', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ 
+        text: text,
+        bypassCache: false,
+        addToHistoryOnly: true  // Special flag to only add to history
+      })
+    });
+  } catch (error) {
+    console.error('❌ Failed to add to history:', error);
+  }
+}
 
 async function doSpeak(forcedText) {
   const text = forcedText ?? textArea.value.trim();
   if (!text) return;
 
+  console.log('🎤 TTS REQUEST STARTED');
+  console.log(`📝 Text length: ${text.length} characters`);
+
   btn.disabled = true;
+  
   try {
-    const resp = await fetch("api/tts", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ text })
-    });
+    const chunks = chunkText(text);
     
-    if (resp.status === 401) {
-      // Authentication required
-      isAuthenticated = false;
-      showAuthSection();
-      return;
+    // If only one chunk, use original logic
+    if (chunks.length === 1) {
+      console.log('🔄 Single chunk - using standard TTS flow');
+      
+      const resp = await fetch("api/tts", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ text })
+      });
+      
+      if (resp.status === 401) {
+        isAuthenticated = false;
+        showAuthSection();
+        return;
+      }
+      
+      if (!resp.ok) throw new Error(`Status ${resp.status}`);
+
+      const blob = await resp.blob();
+      const url = URL.createObjectURL(blob);
+      await playAudio(url);
+
+      console.log('✅ Single chunk TTS completed');
+    } else {
+      // Multi-chunk processing with detailed logging
+      console.log('🚀 MULTI-CHUNK PROCESSING STARTED');
+      console.log(`⏱️ Generating ${chunks.length} audio files concurrently...`);
+      
+      audioQueue = [];
+      currentChunks = [];
+      
+      const startTime = Date.now();
+      
+      // Generate audio for all chunks concurrently
+      const chunkPromises = chunks.map(async (chunk, index) => {
+        console.log(`📡 API call ${index + 1}: "${chunk.substring(0, 50)}..."`);
+        
+        const resp = await fetch("api/tts", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ 
+            text: chunk,
+            isChunk: true,  // Flag to prevent individual chunk caching in history
+            originalText: text  // Include original text for proper caching
+          })
+        });
+        
+        if (resp.status === 401) {
+          isAuthenticated = false;
+          showAuthSection();
+          throw new Error('Authentication required');
+        }
+        
+        if (!resp.ok) throw new Error(`Chunk ${index + 1} failed: Status ${resp.status}`);
+        
+        const blob = await resp.blob();
+        const url = URL.createObjectURL(blob);
+        console.log(`✅ Chunk ${index + 1} audio generated (${blob.size} bytes)`);
+        
+        return { index, url, chunk, blob };
+      });
+      
+      // Process chunks as they complete - START PLAYING FIRST CHUNK IMMEDIATELY
+      const chunkResults = new Array(chunks.length);
+      let firstChunkPlaying = false;
+      
+      console.log(`🎯 Waiting for ${chunks.length} chunks to be generated...`);
+      
+      // Process chunks as they complete, play first chunk immediately
+      for (let i = 0; i < chunkPromises.length; i++) {
+        chunkPromises[i].then(result => {
+          chunkResults[result.index] = result;
+          console.log(`📦 Chunk ${result.index + 1}/${chunks.length} ready`);
+          
+          // Play first chunk immediately when ready
+          if (result.index === 0 && !firstChunkPlaying) {
+            firstChunkPlaying = true;
+            console.log('🎵 IMMEDIATE PLAYBACK: Playing first chunk while others generate...');
+            playAudio(result.url).then(() => {
+              console.log('▶️ First chunk playback started successfully');
+            }).catch(err => console.error('❌ First chunk playback error:', err));
+          }
+        }).catch(err => {
+          console.error(`❌ Chunk ${i + 1} generation failed:`, err);
+        });
+      }
+      
+      // Wait for all chunks to complete for combination
+      await Promise.all(chunkPromises);
+      chunkResults.sort((a, b) => a.index - b.index); // Ensure correct order
+      
+      const generationTime = Date.now() - startTime;
+      console.log(`⚡ All chunks generated in ${generationTime}ms`);
+      
+      // Queue remaining audio for sequential playback after first chunk
+      audioQueue = chunkResults.slice(1).map(result => result.url);
+      currentChunks = chunkResults;
+      
+      // Continue with remaining chunks after first finishes
+      const continuePlayback = () => {
+        if (audioQueue.length > 0) {
+          console.log('🎵 First chunk ended, continuing with remaining chunks...');
+          playAudioQueue();
+        }
+      };
+      
+      player.addEventListener('ended', continuePlayback, { once: true });
+      
+      console.log('🔄 Background: Starting real audio combination process...');
+      combineAudioChunks(chunkResults, text);
     }
     
-    if (!resp.ok) throw new Error(`Status ${resp.status}`);
-
-    const blob = await resp.blob();
-    const url  = URL.createObjectURL(blob);
-    player.src = url;
-    player.hidden = false;
-    await player.play();
-    
-    // Refresh autofill after successful TTS
-    loadAutofill();
+    // Refresh autofill after successful TTS (for both single and multi-chunk)
+    if (chunks.length === 1) {
+      loadAutofill();
+    }
 
     if (!forcedText) {
-      textArea.value = "";  // ✅ clear only
-      updateCharCounter(); // Reset counter to 0/250
-      // no focus — avoids mobile keyboard popup
+      textArea.value = "";
+      updateCharCounter();
     }
 
   } catch (err) {
+    console.error('❌ TTS Error:', err);
     if (err.message.includes('401')) {
       isAuthenticated = false;
       showAuthSection();
@@ -677,6 +1261,8 @@ async function doSpeak(forcedText) {
     }
   } finally {
     btn.disabled = false;
+    console.log('🎤 TTS REQUEST COMPLETED');
+    console.log('');
   }
 }
 
@@ -732,12 +1318,7 @@ window.addEventListener('focus', () => {
   }
 });
 
-textArea.addEventListener("keydown", e => {
-  if (e.key === "Enter" && !e.shiftKey) {
-    e.preventDefault();
-    doSpeak();
-  }
-});
+// Enter key handling is now integrated into the main keydown handler above
 
 // Initialize app - check authentication status
 checkAuthStatus();
