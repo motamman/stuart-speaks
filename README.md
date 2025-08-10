@@ -16,7 +16,6 @@ A modern, feature-rich Node.js Express application that provides intelligent tex
 - **Priority Search**: Common phrases ranked higher than recent texts
 - **Keyboard Navigation**: Arrow keys, Enter, and Escape support
 - **Triple Space Shortcut**: Quick speech trigger with three spaces
-- **Modern UI**: Beautiful warm beige design with clean layout
 
 ### 🔐 User Management
 - **Email Authentication**: Secure 6-digit verification codes
