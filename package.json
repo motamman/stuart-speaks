@@ -1,8 +1,12 @@
 {
   "name": "tts-backend",
-  "version": "1.0.0",
+  "version": "0.8.0",
   "main": "index.js",
   "scripts": {
+    "start": "node server.js",
+    "dev": "NODE_ENV=development node server.js",
+    "prod": "NODE_ENV=production node server.js",
+    "setup-dev": "./setup-local-dev.sh",
     "test": "echo \"Error: no test specified\" && exit 1"
   },
   "keywords": [],
@@ -10,7 +14,13 @@
   "license": "ISC",
   "description": "",
   "dependencies": {
+    "dotenv": "^16.5.0",
     "express": "^5.1.0",
-    "node-fetch": "^2.7.0"
+    "express-session": "^1.18.1",
+    "multer": "^2.0.2",
+    "node-fetch": "^2.7.0",
+    "nodemailer": "^7.0.3",
+    "session-file-store": "^1.5.0",
+    "uuid": "^11.1.0"
   }
 }

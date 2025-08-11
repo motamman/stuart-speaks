@@ -1,4 +1,3 @@
-
 # Stuart Speaks v0.8.0 - Advanced Text-to-Speech Application
 
 A modern, feature-rich Node.js Express application that provides intelligent text-to-speech functionality using Fish.Audio API. Features email authentication, smart chunking, predictive typing, and a beautiful Progressive Web App (PWA) interface.

@@ -1,6 +1,48 @@
-node_modules/
-*.log
+# Environment variables
 .env
-cache/
-uploads/
+.env.local
+.env.production
+.env.deploy
+
+# Sessions (contains user session data)
 sessions/
+
+# Cache contents (keep directory structure but ignore contents)
+cache/*/*
+!cache/.gitkeep
+
+# Node modules
+node_modules/
+
+# Logs
+*.log
+npm-debug.log*
+
+# Runtime data
+pids
+*.pid
+*.seed
+*.pid.lock
+
+# Optional npm cache directory
+.npm
+
+# Optional REPL history
+.node_repl_history
+
+# Output of 'npm pack'
+*.tgz
+
+# Yarn Integrity file
+.yarn-integrity
+
+# macOS
+.DS_Store
+
+# IDE
+.vscode/
+.idea/
+
+# Temporary files
+*.tmp
+*.temp

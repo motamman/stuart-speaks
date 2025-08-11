@@ -1,36 +1,629 @@
 <!DOCTYPE html>
-<html>
+<html lang="en">
 <head>
-  <meta charset="UTF-8">
-  <title>Stuart Speaks</title>
-  <link rel="manifest" href="/stuart/manifest.webmanifest">
-  <link rel="icon" href="/stuart/icons/stuart.png" sizes="32x32" type="image/png">
-  <meta name="theme-color" content="#3367D6">
-  <link rel="stylesheet" href="/stuart/styles.css">
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Stuart Speaks</title>
+    <link rel="manifest" href="/stuartvoice/manifest.webmanifest">
+    <link rel="icon" href="/stuartvoice/icons/stuart.png" sizes="32x32" type="image/png">
+    <meta name="theme-color" content="#2563eb">
+    <style>
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+        }
 
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            background-color: #EAD4A4;
+            padding: 20px;
+            min-height: 100vh;
+        }
+
+        .container {
+            max-width: 800px;
+            margin: 0 auto;
+            background: #EAD4A4;
+            border-radius: 12px;
+            box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+            padding: 24px;
+            min-height: calc(100vh - 40px);
+            display: flex;
+            flex-direction: column;
+        }
+
+        /* Authentication Section */
+        #authSection {
+            max-width: 400px;
+            margin: 50px auto;
+            background: white;
+            padding: 32px;
+            border-radius: 12px;
+            box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+        }
+
+        #authSection h2 {
+            color: #2563eb;
+            margin-bottom: 20px;
+            text-align: center;
+        }
+
+        #authSection input {
+            width: 100%;
+            padding: 12px 16px;
+            margin: 8px 0;
+            border: 2px solid #e0e0e0;
+            border-radius: 8px;
+            font-size: 16px;
+            transition: border-color 0.2s;
+        }
+
+        #authSection input:focus {
+            outline: none;
+            border-color: #2563eb;
+        }
+
+        #authSection button {
+            width: 100%;
+            padding: 12px;
+            background: #2563eb;
+            color: white;
+            border: none;
+            border-radius: 8px;
+            font-size: 16px;
+            cursor: pointer;
+            margin: 8px 0;
+            transition: background-color 0.2s;
+        }
+
+        #authSection button:hover {
+            background: #1d4ed8;
+        }
+
+        #authStatus {
+            margin-top: 16px;
+            padding: 8px;
+            text-align: center;
+            border-radius: 6px;
+        }
+
+        .header {
+            margin-bottom: 16px;
+            display: flex;
+            align-items: center;
+            gap: 12px;
+        }
+
+        .header-icon {
+            width: 48px;
+            height: 48px;
+            border-radius: 50%;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+            flex-shrink: 0;
+        }
+
+        .header h1 {
+            color: #2563eb;
+            margin: 0;
+            font-size: 24px;
+        }
+
+        .user-info {
+            color: #666;
+            font-size: 14px;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        #logoutBtn {
+            padding: 4px 12px;
+            background: #dc2626;
+            color: white;
+            border: none;
+            border-radius: 4px;
+            font-size: 12px;
+            cursor: pointer;
+        }
+
+        #logoutBtn:hover {
+            background: #b91c1c;
+        }
+
+        .text-input-section {
+            margin-bottom: 20px;
+            position: relative;
+        }
+
+        .text-input {
+            width: 100%;
+            min-height: 120px;
+            padding: 16px;
+            border: 2px solid #e0e0e0;
+            border-radius: 8px;
+            font-size: 18px;
+            font-family: inherit;
+            resize: vertical;
+            transition: border-color 0.2s;
+        }
+
+        .text-input:focus {
+            outline: none;
+            border-color: #2563eb;
+        }
+
+        .char-counter {
+            text-align: right;
+            color: #666;
+            font-size: 14px;
+            margin-top: 8px;
+        }
+
+        .autocomplete-dropdown {
+            position: absolute;
+            top: 100%;
+            left: 0;
+            right: 0;
+            background: white;
+            border: 2px solid #2563eb;
+            border-top: none;
+            border-radius: 0 0 8px 8px;
+            max-height: 200px;
+            overflow-y: auto;
+            z-index: 1000;
+            display: none;
+            box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+        }
+
+        .autocomplete-suggestion {
+            padding: 12px 16px;
+            cursor: pointer;
+            border-bottom: 1px solid #e0e0e0;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            transition: background-color 0.2s;
+        }
+
+        .autocomplete-suggestion:last-child {
+            border-bottom: none;
+        }
+
+        .autocomplete-suggestion:hover,
+        .autocomplete-suggestion.selected {
+            background-color: #f0f9ff;
+        }
+
+        .suggestion-type {
+            font-size: 11px;
+            padding: 2px 6px;
+            border-radius: 10px;
+            font-weight: bold;
+            flex-shrink: 0;
+        }
+
+        .suggestion-type.phrase {
+            background: #dcfce7;
+            color: #16a34a;
+        }
+
+        .suggestion-type.recent {
+            background: #fef3c7;
+            color: #d97706;
+        }
+
+        .suggestion-text {
+            flex: 1;
+            font-size: 16px;
+        }
+
+        .speak-button {
+            width: 100%;
+            height: 80px;
+            background: #2563eb;
+            color: white;
+            border: none;
+            border-radius: 12px;
+            font-size: 24px;
+            font-weight: bold;
+            cursor: pointer;
+            transition: background-color 0.2s;
+            margin-bottom: 24px;
+            box-shadow: 0 2px 4px rgba(37, 99, 235, 0.2);
+        }
+
+        .speak-button:hover {
+            background: #1d4ed8;
+        }
+
+        .speak-button:active {
+            transform: translateY(1px);
+        }
+
+        #installBtn {
+            position: absolute;
+            top: 16px;
+            right: 16px;
+            padding: 8px 16px;
+            background: #10b981;
+            color: white;
+            border: none;
+            border-radius: 6px;
+            cursor: pointer;
+            font-size: 14px;
+        }
+
+        #installBtn:hover {
+            background: #059669;
+        }
+
+        .tabs-container {
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+            background: white;
+            border-radius: 8px;
+            overflow: hidden;
+        }
+
+        .tab-headers {
+            display: flex;
+            border-bottom: 2px solid #e0e0e0;
+            margin: 0;
+        }
+
+        .tab-header {
+            flex: 1;
+            padding: 16px;
+            background: #f8f9fa;
+            border: none;
+            font-size: 16px;
+            font-weight: 600;
+            cursor: pointer;
+            border-radius: 8px 8px 0 0;
+            margin-right: 4px;
+            transition: all 0.2s;
+        }
+
+        .tab-header:last-child {
+            margin-right: 0;
+        }
+
+        .tab-header.active {
+            background: white;
+            color: #2563eb;
+            border-bottom: 2px solid #2563eb;
+            margin-bottom: -2px;
+        }
+
+        .tab-content {
+            flex: 1;
+            display: none;
+            padding: 16px;
+            overflow-y: auto;
+            max-height: calc(100vh - 400px);
+        }
+
+        .tab-content.active {
+            display: block;
+        }
+
+
+        .phrases-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 12px;
+            margin-bottom: 16px;
+        }
+
+        .phrase-container {
+            position: relative;
+            display: inline-block;
+        }
+
+        .phrase-button {
+            padding: 16px 24px 16px 16px;
+            background: #f0f9ff;
+            border: 2px solid #bae6fd;
+            border-radius: 8px;
+            font-size: 16px;
+            cursor: pointer;
+            transition: all 0.2s;
+            text-align: center;
+            min-height: 60px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            width: 100%;
+            position: relative;
+        }
+
+        .phrase-button:hover {
+            background: #e0f2fe;
+            border-color: #38bdf8;
+        }
+
+        .phrase-remove-btn {
+            position: absolute;
+            top: -2px;
+            right: -2px;
+            width: 20px;
+            height: 20px;
+            font-size: 12px;
+            padding: 0;
+            background: #ff6b6b;
+            color: white;
+            border: none;
+            border-radius: 50%;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            line-height: 1;
+            transition: all 0.2s;
+        }
+
+        .phrase-remove-btn:hover {
+            background: #ff5252;
+            transform: scale(1.1);
+        }
+
+        .recent-items {
+            display: flex;
+            flex-direction: column;
+            gap: 12px;
+        }
+
+        .recent-item {
+            background: #f9fafb;
+            border: 1px solid #e5e7eb;
+            border-radius: 8px;
+            padding: 16px;
+            display: flex;
+            align-items: center;
+            gap: 12px;
+        }
+
+        .recent-item.has-combined {
+            border: 2px solid #4CAF50;
+            background: #f8fff8;
+            position: relative;
+        }
+
+        .combined-badge {
+            position: absolute;
+            top: -8px;
+            right: -8px;
+            background: #4CAF50;
+            color: white;
+            font-size: 11px;
+            padding: 2px 6px;
+            border-radius: 10px;
+            font-weight: bold;
+            box-shadow: 0 1px 3px rgba(0,0,0,0.2);
+        }
+
+        .recent-text {
+            flex: 1;
+            font-size: 16px;
+            color: #374151;
+        }
+
+        .action-buttons {
+            display: flex;
+            gap: 8px;
+        }
+
+        .action-button {
+            width: 44px;
+            height: 44px;
+            border: none;
+            border-radius: 6px;
+            cursor: pointer;
+            font-size: 18px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            transition: all 0.2s;
+        }
+
+        .play-btn {
+            background: #dcfce7;
+            color: #16a34a;
+        }
+
+        .play-btn:hover {
+            background: #bbf7d0;
+        }
+
+        .edit-btn {
+            background: #fef3c7;
+            color: #d97706;
+        }
+
+        .edit-btn:hover {
+            background: #fde68a;
+        }
+
+        .delete-btn {
+            background: #fee2e2;
+            color: #dc2626;
+        }
+
+        .delete-btn:hover {
+            background: #fecaca;
+        }
+
+        .phrase-management {
+            margin-top: 16px;
+            padding-top: 16px;
+            border-top: 1px solid #e5e7eb;
+        }
+
+        .add-phrase-section {
+            display: flex;
+            gap: 8px;
+            margin-bottom: 12px;
+        }
+
+        .new-phrase-input {
+            flex: 1;
+            padding: 12px;
+            border: 1px solid #d1d5db;
+            border-radius: 6px;
+            font-size: 16px;
+        }
+
+        .add-phrase-btn {
+            padding: 12px 24px;
+            background: #10b981;
+            color: white;
+            border: none;
+            border-radius: 6px;
+            font-size: 16px;
+            cursor: pointer;
+            white-space: nowrap;
+        }
+
+        .add-phrase-btn:hover {
+            background: #059669;
+        }
+
+        .phrase-actions {
+            display: flex;
+            gap: 8px;
+            justify-content: center;
+        }
+
+        .phrase-action-btn {
+            padding: 8px 16px;
+            border: 1px solid #d1d5db;
+            background: white;
+            border-radius: 6px;
+            cursor: pointer;
+            font-size: 14px;
+        }
+
+        .phrase-action-btn:hover {
+            background: #f9fafb;
+        }
+
+        #player {
+            display: none;
+        }
+
+        /* Mobile responsive */
+        @media (max-width: 768px) {
+            .container {
+                padding: 16px;
+                margin: 10px;
+                min-height: calc(100vh - 20px);
+            }
+
+            .phrases-grid {
+                grid-template-columns: 1fr;
+            }
+
+            .add-phrase-section {
+                flex-direction: column;
+            }
+
+            .phrase-actions {
+                flex-wrap: wrap;
+            }
+
+            .action-buttons {
+                flex-direction: column;
+                gap: 4px;
+            }
+
+            .action-button {
+                width: 36px;
+                height: 36px;
+                font-size: 16px;
+            }
+        }
+    </style>
 </head>
 <body>
-  <!-- Logo -->
-  <img src="/stuart/icons/stuart.png" alt="Stuart's never stops" style="width:100px;height:auto;">
-  
-  <h1>Place text upon Stuart's tongue</h1>
+    <!-- Authentication Section -->
+    <div id="authSection" style="display:none;">
+        <div id="loginForm">
+            <h2>Welcome to Stuart Speaks</h2>
+            <input type="email" id="emailInput" placeholder="Enter your email">
+            <button id="requestCodeBtn">Send Verification Code</button>
+            
+            <div id="codeSection" style="display:none;">
+                <input type="text" id="codeInput" placeholder="Enter 6-digit code" maxlength="6">
+                <button id="verifyCodeBtn">Verify Code</button>
+            </div>
+            
+            <div id="authStatus"></div>
+        </div>
+    </div>
 
-  <div class="textarea-container">
-    <textarea id="text" rows="4" placeholder="Type something…"></textarea>
-    <button id="installBtn">Install</button>
-  </div>
+    <!-- Main App (hidden until authenticated) -->
+    <div id="mainApp" class="container" style="display:none;">
+        <div class="header">
+            <img src="/stuartvoice/icons/stuart.png" alt="Stuart" class="header-icon">
+            <div>
+                <h1>Stuart Speaks</h1>
+                <div class="user-info">
+                    <span id="userEmail"></span>
+                    <button id="logoutBtn">Logout</button>
+                </div>
+            </div>
+            <button id="installBtn" style="display:none;">Install App</button>
+        </div>
 
-  <br>
-  <button id="speak">Speak</button><br>
-  <audio id="player" controls hidden></audio>
-  
-  
-  <h2>Common Phrases</h2>
-  <div id="commonPhrases"></div>
+        <div class="text-input-section">
+            <textarea 
+                id="text"
+                class="text-input" 
+                placeholder="Type what you want Stuart to say..."
+                maxlength="1000"
+            ></textarea>
+            <div class="autocomplete-dropdown" id="autocompleteDropdown"></div>
+            <div class="char-counter" id="charCounter">0/1000</div>
+        </div>
 
-  <h2>Conversation Log</h2>
-  <div id="log"></div>
+        <button class="speak-button" id="speak">
+            🔊 SPEAK
+        </button>
 
-  <script src="/stuart/app.js"></script>
+        <audio id="player" hidden></audio>
+
+        <div class="tabs-container">
+            <div class="tab-headers">
+                <button class="tab-header active" data-tab="phrases">Common Phrases</button>
+                <button class="tab-header" data-tab="recent">Recent Texts</button>
+            </div>
+
+            <!-- Common Phrases Tab -->
+            <div class="tab-content active" id="phrases-tab">
+                <div class="phrases-grid" id="commonPhrases"></div>
+
+                <div class="phrase-management">
+                    <div class="add-phrase-section">
+                        <input type="text" class="new-phrase-input" placeholder="Add new phrase..." id="newPhraseInput" maxlength="100">
+                        <button class="add-phrase-btn" id="addPhraseBtn">Add</button>
+                    </div>
+                    <div class="phrase-actions">
+                        <button class="phrase-action-btn" id="resetPhrasesBtn">Reset to Defaults</button>
+                        <button class="phrase-action-btn" id="removeAllPhrasesBtn">Remove All</button>
+                        <button class="phrase-action-btn" id="refreshAutofillBtn">🔄 Sync</button>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Recent Text Tab -->
+            <div class="tab-content" id="recent-tab">
+                <div class="recent-items" id="autofillList"></div>
+            </div>
+        </div>
+    </div>
+
+    <script src="/stuartvoice/app.js"></script>
 </body>
 </html>

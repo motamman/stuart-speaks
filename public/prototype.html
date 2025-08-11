@@ -1,0 +1,643 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Stuart Speaks - New Layout Prototype</title>
+    <style>
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            background-color: #EAD4A4;
+            padding: 20px;
+            min-height: 100vh;
+        }
+
+        .container {
+            max-width: 800px;
+            margin: 0 auto;
+            background: #EAD4A4;
+            border-radius: 12px;
+            box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+            padding: 24px;
+            min-height: calc(100vh - 40px);
+            display: flex;
+            flex-direction: column;
+        }
+
+        .header {
+            margin-bottom: 16px;
+            display: flex;
+            align-items: center;
+            gap: 12px;
+        }
+
+        .header-icon {
+            width: 48px;
+            height: 48px;
+            border-radius: 50%;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+            flex-shrink: 0;
+        }
+
+        .header h1 {
+            color: #2563eb;
+            margin: 0;
+            font-size: 24px;
+        }
+
+        .user-info {
+            color: #666;
+            font-size: 14px;
+        }
+
+        .text-input-section {
+            margin-bottom: 20px;
+        }
+
+        .text-input {
+            width: 100%;
+            min-height: 120px;
+            padding: 16px;
+            border: 2px solid #e0e0e0;
+            border-radius: 8px;
+            font-size: 18px;
+            font-family: inherit;
+            resize: vertical;
+            transition: border-color 0.2s;
+        }
+
+        .text-input:focus {
+            outline: none;
+            border-color: #2563eb;
+        }
+
+        .char-counter {
+            text-align: right;
+            color: #666;
+            font-size: 14px;
+            margin-top: 8px;
+        }
+
+        .speak-button {
+            width: 100%;
+            height: 80px;
+            background: #2563eb;
+            color: white;
+            border: none;
+            border-radius: 12px;
+            font-size: 24px;
+            font-weight: bold;
+            cursor: pointer;
+            transition: background-color 0.2s;
+            margin-bottom: 24px;
+            box-shadow: 0 2px 4px rgba(37, 99, 235, 0.2);
+        }
+
+        .speak-button:hover {
+            background: #1d4ed8;
+        }
+
+        .speak-button:active {
+            transform: translateY(1px);
+        }
+
+        .tabs-container {
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+            background: white;
+            border-radius: 8px;
+            overflow: hidden;
+        }
+
+        .tab-headers {
+            display: flex;
+            border-bottom: 2px solid #e0e0e0;
+            margin: 0;
+        }
+
+        .tab-header {
+            flex: 1;
+            padding: 16px;
+            background: #f8f9fa;
+            border: none;
+            font-size: 16px;
+            font-weight: 600;
+            cursor: pointer;
+            border-radius: 8px 8px 0 0;
+            margin-right: 4px;
+            transition: all 0.2s;
+        }
+
+        .tab-header:last-child {
+            margin-right: 0;
+        }
+
+        .tab-header.active {
+            background: white;
+            color: #2563eb;
+            border-bottom: 2px solid #2563eb;
+            margin-bottom: -2px;
+        }
+
+        .tab-content {
+            flex: 1;
+            display: none;
+            padding: 16px;
+            overflow-y: auto;
+            max-height: calc(100vh - 400px);
+        }
+
+        .tab-content.active {
+            display: block;
+        }
+
+        .filter-box {
+            width: 100%;
+            padding: 12px 16px;
+            border: 1px solid #d1d5db;
+            border-radius: 6px;
+            font-size: 16px;
+            margin-bottom: 16px;
+        }
+
+        .filter-box:focus {
+            outline: none;
+            border-color: #2563eb;
+        }
+
+        .phrases-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 12px;
+            margin-bottom: 16px;
+        }
+
+        .phrase-container {
+            position: relative;
+            display: inline-block;
+        }
+
+        .phrase-button {
+            padding: 16px 24px 16px 16px;
+            background: #f0f9ff;
+            border: 2px solid #bae6fd;
+            border-radius: 8px;
+            font-size: 16px;
+            cursor: pointer;
+            transition: all 0.2s;
+            text-align: center;
+            min-height: 60px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            width: 100%;
+            position: relative;
+        }
+
+        .phrase-button:hover {
+            background: #e0f2fe;
+            border-color: #38bdf8;
+        }
+
+        .phrase-remove-btn {
+            position: absolute;
+            top: -2px;
+            right: -2px;
+            width: 20px;
+            height: 20px;
+            font-size: 12px;
+            padding: 0;
+            background: #ff6b6b;
+            color: white;
+            border: none;
+            border-radius: 50%;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            line-height: 1;
+            transition: all 0.2s;
+        }
+
+        .phrase-remove-btn:hover {
+            background: #ff5252;
+            transform: scale(1.1);
+        }
+
+        .recent-items {
+            display: flex;
+            flex-direction: column;
+            gap: 12px;
+        }
+
+        .recent-item {
+            background: #f9fafb;
+            border: 1px solid #e5e7eb;
+            border-radius: 8px;
+            padding: 16px;
+            display: flex;
+            align-items: center;
+            gap: 12px;
+        }
+
+        .recent-text {
+            flex: 1;
+            font-size: 16px;
+            color: #374151;
+        }
+
+        .action-buttons {
+            display: flex;
+            gap: 8px;
+        }
+
+        .action-button {
+            width: 44px;
+            height: 44px;
+            border: none;
+            border-radius: 6px;
+            cursor: pointer;
+            font-size: 18px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            transition: all 0.2s;
+        }
+
+        .play-btn {
+            background: #dcfce7;
+            color: #16a34a;
+        }
+
+        .play-btn:hover {
+            background: #bbf7d0;
+        }
+
+        .edit-btn {
+            background: #fef3c7;
+            color: #d97706;
+        }
+
+        .edit-btn:hover {
+            background: #fde68a;
+        }
+
+        .delete-btn {
+            background: #fee2e2;
+            color: #dc2626;
+        }
+
+        .delete-btn:hover {
+            background: #fecaca;
+        }
+
+        .phrase-management {
+            margin-top: 16px;
+            padding-top: 16px;
+            border-top: 1px solid #e5e7eb;
+        }
+
+        .add-phrase-section {
+            display: flex;
+            gap: 8px;
+            margin-bottom: 12px;
+        }
+
+        .new-phrase-input {
+            flex: 1;
+            padding: 12px;
+            border: 1px solid #d1d5db;
+            border-radius: 6px;
+            font-size: 16px;
+        }
+
+        .add-phrase-btn {
+            padding: 12px 24px;
+            background: #10b981;
+            color: white;
+            border: none;
+            border-radius: 6px;
+            font-size: 16px;
+            cursor: pointer;
+            white-space: nowrap;
+        }
+
+        .add-phrase-btn:hover {
+            background: #059669;
+        }
+
+        .phrase-actions {
+            display: flex;
+            gap: 8px;
+        }
+
+        .phrase-action-btn {
+            padding: 8px 16px;
+            border: 1px solid #d1d5db;
+            background: white;
+            border-radius: 6px;
+            cursor: pointer;
+            font-size: 14px;
+        }
+
+        .phrase-action-btn:hover {
+            background: #f9fafb;
+        }
+
+        /* Mobile responsive */
+        @media (max-width: 768px) {
+            .container {
+                padding: 16px;
+                margin: 10px;
+                min-height: calc(100vh - 20px);
+            }
+
+            .phrases-grid {
+                grid-template-columns: 1fr;
+            }
+
+            .add-phrase-section {
+                flex-direction: column;
+            }
+
+            .phrase-actions {
+                flex-wrap: wrap;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <img src="icons/stuart.png" alt="Stuart" class="header-icon">
+            <div>
+                <h1>Stuart Speaks</h1>
+                <div class="user-info">Signed in as: user@example.com</div>
+            </div>
+        </div>
+
+        <div class="text-input-section">
+            <textarea 
+                class="text-input" 
+                placeholder="Type what you want to say..."
+                maxlength="250"
+                id="textInput"
+            ></textarea>
+            <div class="char-counter" id="charCounter">0/250</div>
+        </div>
+
+        <button class="speak-button" id="speakBtn">
+            🔊 SPEAK
+        </button>
+
+        <div class="tabs-container">
+            <div class="tab-headers">
+                <button class="tab-header active" data-tab="phrases">Common Phrases</button>
+                <button class="tab-header" data-tab="recent">Recent Text</button>
+            </div>
+
+            <!-- Common Phrases Tab -->
+            <div class="tab-content active" id="phrases-tab">
+                <input type="text" class="filter-box" placeholder="Filter phrases..." id="phrasesFilter">
+                
+                <div class="phrases-grid" id="phrasesGrid">
+                    <div class="phrase-container">
+                        <button class="phrase-button">Yes</button>
+                        <button class="phrase-remove-btn" title="Remove phrase">×</button>
+                    </div>
+                    <div class="phrase-container">
+                        <button class="phrase-button">No</button>
+                        <button class="phrase-remove-btn" title="Remove phrase">×</button>
+                    </div>
+                    <div class="phrase-container">
+                        <button class="phrase-button">Thank you</button>
+                        <button class="phrase-remove-btn" title="Remove phrase">×</button>
+                    </div>
+                    <div class="phrase-container">
+                        <button class="phrase-button">Please</button>
+                        <button class="phrase-remove-btn" title="Remove phrase">×</button>
+                    </div>
+                    <div class="phrase-container">
+                        <button class="phrase-button">Hello</button>
+                        <button class="phrase-remove-btn" title="Remove phrase">×</button>
+                    </div>
+                    <div class="phrase-container">
+                        <button class="phrase-button">Goodbye</button>
+                        <button class="phrase-remove-btn" title="Remove phrase">×</button>
+                    </div>
+                    <div class="phrase-container">
+                        <button class="phrase-button">How are you?</button>
+                        <button class="phrase-remove-btn" title="Remove phrase">×</button>
+                    </div>
+                    <div class="phrase-container">
+                        <button class="phrase-button">I love you</button>
+                        <button class="phrase-remove-btn" title="Remove phrase">×</button>
+                    </div>
+                    <div class="phrase-container">
+                        <button class="phrase-button">More coffee, please</button>
+                        <button class="phrase-remove-btn" title="Remove phrase">×</button>
+                    </div>
+                    <div class="phrase-container">
+                        <button class="phrase-button">What's for dinner?</button>
+                        <button class="phrase-remove-btn" title="Remove phrase">×</button>
+                    </div>
+                </div>
+
+                <div class="phrase-management">
+                    <div class="add-phrase-section">
+                        <input type="text" class="new-phrase-input" placeholder="Add new phrase..." id="newPhrase">
+                        <button class="add-phrase-btn" id="addPhraseBtn">Add</button>
+                    </div>
+                    <div class="phrase-actions">
+                        <button class="phrase-action-btn">Reset to Defaults</button>
+                        <button class="phrase-action-btn">Remove All</button>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Recent Text Tab -->
+            <div class="tab-content" id="recent-tab">
+                <input type="text" class="filter-box" placeholder="Filter recent text..." id="recentFilter">
+                
+                <div class="recent-items" id="recentItems">
+                    <div class="recent-item">
+                        <div class="recent-text">Hello there, how are you doing today?</div>
+                        <div class="action-buttons">
+                            <button class="action-button play-btn" title="Play audio">▶️</button>
+                            <button class="action-button edit-btn" title="Edit text">📝</button>
+                            <button class="action-button delete-btn" title="Delete">❌</button>
+                        </div>
+                    </div>
+                    <div class="recent-item">
+                        <div class="recent-text">Thank you for your help with this project.</div>
+                        <div class="action-buttons">
+                            <button class="action-button play-btn" title="Play audio">▶️</button>
+                            <button class="action-button edit-btn" title="Edit text">📝</button>
+                            <button class="action-button delete-btn" title="Delete">❌</button>
+                        </div>
+                    </div>
+                    <div class="recent-item">
+                        <div class="recent-text">Good morning everyone!</div>
+                        <div class="action-buttons">
+                            <button class="action-button play-btn" title="Play audio">▶️</button>
+                            <button class="action-button edit-btn" title="Edit text">📝</button>
+                            <button class="action-button delete-btn" title="Delete">❌</button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // Tab functionality
+        document.querySelectorAll('.tab-header').forEach(header => {
+            header.addEventListener('click', () => {
+                // Remove active class from all headers and content
+                document.querySelectorAll('.tab-header').forEach(h => h.classList.remove('active'));
+                document.querySelectorAll('.tab-content').forEach(c => c.classList.remove('active'));
+                
+                // Add active class to clicked header
+                header.classList.add('active');
+                
+                // Show corresponding content
+                const tabId = header.getAttribute('data-tab');
+                document.getElementById(`${tabId}-tab`).classList.add('active');
+            });
+        });
+
+        // Character counter
+        const textInput = document.getElementById('textInput');
+        const charCounter = document.getElementById('charCounter');
+
+        textInput.addEventListener('input', () => {
+            const length = textInput.value.length;
+            charCounter.textContent = `${length}/250`;
+            
+            // Color coding
+            if (length > 225) {
+                charCounter.style.color = '#dc2626';
+            } else if (length > 200) {
+                charCounter.style.color = '#d97706';
+            } else {
+                charCounter.style.color = '#666';
+            }
+        });
+
+        // Phrase button functionality
+        document.querySelectorAll('.phrase-button').forEach(button => {
+            button.addEventListener('click', () => {
+                const phrase = button.textContent;
+                const currentText = textInput.value;
+                const newText = currentText + (currentText ? ' ' : '') + phrase;
+                
+                if (newText.length <= 250) {
+                    textInput.value = newText;
+                    textInput.dispatchEvent(new Event('input'));
+                    textInput.focus();
+                }
+            });
+        });
+
+        // Phrase remove button functionality
+        document.querySelectorAll('.phrase-remove-btn').forEach(button => {
+            button.addEventListener('click', (e) => {
+                e.stopPropagation();
+                const phraseContainer = button.closest('.phrase-container');
+                const phrase = phraseContainer.querySelector('.phrase-button').textContent;
+                
+                if (confirm(`Remove phrase: "${phrase}"?`)) {
+                    phraseContainer.remove();
+                }
+            });
+        });
+
+        // Filter functionality
+        const phrasesFilter = document.getElementById('phrasesFilter');
+        const recentFilter = document.getElementById('recentFilter');
+
+        phrasesFilter.addEventListener('input', (e) => {
+            const filter = e.target.value.toLowerCase();
+            document.querySelectorAll('.phrase-container').forEach(container => {
+                const button = container.querySelector('.phrase-button');
+                const text = button.textContent.toLowerCase();
+                container.style.display = text.includes(filter) ? 'block' : 'none';
+            });
+        });
+
+        recentFilter.addEventListener('input', (e) => {
+            const filter = e.target.value.toLowerCase();
+            document.querySelectorAll('.recent-item').forEach(item => {
+                const text = item.querySelector('.recent-text').textContent.toLowerCase();
+                item.style.display = text.includes(filter) ? 'flex' : 'none';
+            });
+        });
+
+        // Recent item actions
+        document.querySelectorAll('.edit-btn').forEach(button => {
+            button.addEventListener('click', (e) => {
+                const recentText = e.target.closest('.recent-item').querySelector('.recent-text').textContent;
+                textInput.value = recentText;
+                textInput.dispatchEvent(new Event('input'));
+                textInput.focus();
+            });
+        });
+
+        // Mock speak functionality
+        document.getElementById('speakBtn').addEventListener('click', () => {
+            const text = textInput.value.trim();
+            if (text) {
+                alert(`Speaking: "${text}"`);
+                textInput.value = '';
+                textInput.dispatchEvent(new Event('input'));
+            }
+        });
+
+        // Add phrase functionality
+        document.getElementById('addPhraseBtn').addEventListener('click', () => {
+            const newPhrase = document.getElementById('newPhrase').value.trim();
+            if (newPhrase) {
+                const container = document.createElement('div');
+                container.className = 'phrase-container';
+                
+                const button = document.createElement('button');
+                button.className = 'phrase-button';
+                button.textContent = newPhrase;
+                button.addEventListener('click', () => {
+                    const currentText = textInput.value;
+                    const newText = currentText + (currentText ? ' ' : '') + newPhrase;
+                    
+                    if (newText.length <= 250) {
+                        textInput.value = newText;
+                        textInput.dispatchEvent(new Event('input'));
+                        textInput.focus();
+                    }
+                });
+
+                const removeBtn = document.createElement('button');
+                removeBtn.className = 'phrase-remove-btn';
+                removeBtn.textContent = '×';
+                removeBtn.title = 'Remove phrase';
+                removeBtn.addEventListener('click', (e) => {
+                    e.stopPropagation();
+                    if (confirm(`Remove phrase: "${newPhrase}"?`)) {
+                        container.remove();
+                    }
+                });
+                
+                container.appendChild(button);
+                container.appendChild(removeBtn);
+                document.getElementById('phrasesGrid').appendChild(container);
+                document.getElementById('newPhrase').value = '';
+            }
+        });
+    </script>
+</body>
+</html>
