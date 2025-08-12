@@ -1,8 +1,8 @@
 {
   "name": "Stuart Speaks to me",
   "short_name": "Stuart Speaks",
-  "start_url": "/stuartvoice/",        
-  "scope": "/stuartvoice/",            
+  "start_url": "/BASE_PATH/",        
+  "scope": "/BASE_PATH/",            
   "display": "standalone",
   "background_color": "#ffffff",
   "theme_color": "#3367D6",

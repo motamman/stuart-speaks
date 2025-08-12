@@ -27,7 +27,7 @@ app.use(express.json());
 // Configure multer for file uploads
 const upload = multer({ 
   dest: 'uploads/',
-  limits: { fileSize: 10 * 1024 * 1024 } // 10MB limit
+  limits: { fileSize: 50 * 1024 * 1024 } // 50MB limit
 });
 
 // Ensure combined audio cache directory exists
@@ -53,7 +53,7 @@ app.use(session({
   resave: false,
   saveUninitialized: false,
   cookie: { 
-    path: '/stuartvoice/',
+    path: DEV_BASE + '/',
     secure: false, //process.env.NODE_ENV === 'production',
     maxAge: 30 * 24 * 60 * 60 * 1000 // 30 days
   }
@@ -814,6 +814,21 @@ app.get(withBase("/"), (req, res) => {
   let html = fs.readFileSync(path.join(__dirname, 'public', 'index.html'), 'utf8');
   html = html.replace(/\/BASE_PATH\//g, DEV_BASE + '/');
   res.send(html);
+});
+
+// Serve templated files with dynamic base path
+app.get(withBase("/app.js"), (req, res) => {
+  let js = fs.readFileSync(path.join(__dirname, 'public', 'app.js'), 'utf8');
+  js = js.replace(/\/BASE_PATH\//g, DEV_BASE + '/');
+  res.setHeader('Content-Type', 'application/javascript');
+  res.send(js);
+});
+
+app.get(withBase("/manifest.webmanifest"), (req, res) => {
+  let manifest = fs.readFileSync(path.join(__dirname, 'public', 'manifest.webmanifest'), 'utf8');
+  manifest = manifest.replace(/\/BASE_PATH\//g, DEV_BASE + '/');
+  res.setHeader('Content-Type', 'application/manifest+json');
+  res.send(manifest);
 });
 
 // Serve static files from ./public, mounted under the base path

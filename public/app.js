@@ -526,7 +526,7 @@ window.addEventListener('appinstalled', () => {
 if ('serviceWorker' in navigator) {
   window.addEventListener('load', () => {
     navigator.serviceWorker
-      .register('/stuartvoice/sw.js', { scope: '/stuartvoice/' })
+      .register('/BASE_PATH/sw.js', { scope: '/BASE_PATH/' })
       .then(reg => console.log('SW registered with scope:', reg.scope))
       .catch(err => console.error('SW registration failed:', err));
   });
