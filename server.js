@@ -812,8 +812,7 @@ app.post(withBase("/api/check-combined"), requireAuth, (req, res) => {
 // Serve index.html with dynamic base path
 app.get(withBase("/"), (req, res) => {
   let html = fs.readFileSync(path.join(__dirname, 'public', 'index.html'), 'utf8');
-  html = html.replace(/\/stuartvoice\//g, DEV_BASE + '/');
-  html = html.replace(/\/stuart-test\//g, DEV_BASE + '/');
+  html = html.replace(/\/BASE_PATH\//g, DEV_BASE + '/');
   res.send(html);
 });
 
