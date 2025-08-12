@@ -13,10 +13,10 @@ const fs = require("fs");
 const multer = require('multer');
 
 const app = express();
-const PORT = process.env.PORT || 3002;
+const PORT = process.env.PORT || 3003;
 
 // Determine base path: serve under /stuartvoice for both development and production
-const DEV_BASE = "/stuartvoice";
+const DEV_BASE = "/stuart-test"; // Change this to "/stuartvoice" in production if needed
 
 // Helper to prefix routes with the base path
 const withBase = (route) => DEV_BASE + route;
