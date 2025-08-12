@@ -4,15 +4,17 @@
 .env.production
 .env.deploy
 
-# Sessions (contains user session data)
-sessions/
-
-# Cache contents (keep directory structure but ignore contents)
-cache/*/*
-!cache/.gitkeep
-
-# Node modules
+# Dependencies
 node_modules/
+
+# Environment variables
+.env*
+
+# Generated files
+sessions/
+cache/
+uploads/
+logs/
 
 # Logs
 *.log
