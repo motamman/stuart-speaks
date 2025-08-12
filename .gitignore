@@ -1,9 +1,3 @@
-# Environment variables
-.env
-.env.local
-.env.production
-.env.deploy
-
 # Dependencies
 node_modules/
 
