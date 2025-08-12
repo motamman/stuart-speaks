@@ -95,13 +95,12 @@ tts-backend/
 - `GET /stuartvoice/share/:shareId` - Public audio sharing
 - `GET /stuartvoice/api/cache-stats` - Cache statistics (authenticated)
 
-## Setup and Installation
+## Quick Start
 
 ### Prerequisites
 - **Node.js 18+**
-- **ProtonMail Business/Family account** with custom domain
+- **ProtonMail Business/Family account** with custom domain for SMTP
 - **Fish.Audio API account** with API key and model ID
-- **Ubuntu/Debian server** (for deployment)
 
 ### Local Development
 
@@ -115,109 +114,56 @@ tts-backend/
 2. **Create environment file**:
    ```bash
    cp .env.example .env
+   # Edit .env with your API keys and SMTP settings
    ```
 
-3. **Configure `.env` file**:
-   ```env
-   # Fish.Audio API
-   FISH_API_KEY=your_fish_api_key_here
-   FISH_MODEL_ID=your_fish_model_reference_id_here
-   
-   # ProtonMail SMTP Configuration
-   PROTON_EMAIL=your_email@yourdomain.com
-   PROTON_SMTP_TOKEN=your_protonmail_smtp_token_here
-   
-   # Session Security
-   SESSION_SECRET=your_generated_session_secret_here
-   
-   # Environment
-   NODE_ENV=development
-   PORT=3002
-   ```
-
-4. **Generate session secret**:
+3. **Start development server**:
    ```bash
-   node -e "console.log(require('crypto').randomBytes(32).toString('hex'))"
+   npm start
    ```
 
-5. **Start development server**:
-   ```bash
-   npm run dev
-   ```
-
-6. **Access application**:
+4. **Access application**:
    - Open `http://localhost:3002/stuartvoice/`
    - Health check: `http://localhost:3002/stuartvoice/ping`
 
 ### Production Deployment
 
-#### Option 1: Automated Deployment Script
-```bash
-# Deploy to remote server
-./deploy-remote.sh your-server.com ubuntu /path/to/ssh-key.pem
+📋 **See [DEPLOYMENT.md](./DEPLOYMENT.md) for comprehensive production deployment guide**
 
-# Or use rsync method (requires .env.deploy)
-./deploy-rsync.sh
-```
-
-#### Option 2: Manual Deployment
-1. **Upload files to server**:
-   ```bash
-   scp -r . user@server:/var/www/stuart-speaks/
-   ```
-
-2. **Install dependencies**:
-   ```bash
-   ssh user@server
-   cd /var/www/stuart-speaks
-   npm install --production
-   ```
-
-3. **Configure environment**:
-   ```bash
-   # Copy your .env file to server
-   scp .env user@server:/var/www/stuart-speaks/
-   ```
-
-4. **Set up systemd service**:
-   ```bash
-   sudo cp tts-backend.service /etc/systemd/system/
-   sudo systemctl daemon-reload
-   sudo systemctl enable tts-backend
-   sudo systemctl start tts-backend
-   ```
-
-5. **Configure Nginx** (optional):
-   ```bash
-   sudo cp config/nginx-production.conf /etc/nginx/sites-available/stuart-speaks
-   sudo ln -s /etc/nginx/sites-available/stuart-speaks /etc/nginx/sites-enabled/
-   sudo nginx -t && sudo systemctl reload nginx
-   ```
+The deployment guide covers:
+- Server setup and requirements
+- SystemD service configuration
+- Nginx reverse proxy setup
+- SSL certificate installation
+- Security hardening
+- Monitoring and maintenance
 
 ## Configuration
 
 ### Environment Variables
-- `FISH_API_KEY`: Fish.Audio API key for TTS generation
-- `FISH_MODEL_ID`: Fish.Audio model reference ID
-- `PROTON_EMAIL`: ProtonMail email address (must be custom domain)
-- `PROTON_SMTP_TOKEN`: ProtonMail SMTP token (not regular password)
-- `SESSION_SECRET`: Random secret for session encryption
-- `NODE_ENV`: Environment mode (development/production)
-- `PORT`: Server port (default: 3002)
+Create a `.env` file with the following variables:
 
-### ProtonMail SMTP Setup
-1. **Requirements**: Business/Family plan with custom domain
-2. **SMTP Settings**:
-   - Server: `smtp.protonmail.ch`
-   - Port: `587` (STARTTLS)
-   - Authentication: SMTP token (not password)
-3. **Generate SMTP token** in ProtonMail settings
+```env
+# Fish.Audio API
+FISH_API_KEY=your_fish_api_key_here
+FISH_MODEL_ID=your_fish_model_reference_id_here
 
-### Fish.Audio API Setup
-1. **Sign up** at Fish.Audio
-2. **Create API key** in dashboard
-3. **Train or select model** and get reference ID
-4. **Test API access** before deployment
+# ProtonMail SMTP
+PROTON_EMAIL=your_email@yourdomain.com
+PROTON_SMTP_TOKEN=your_protonmail_smtp_token_here
+
+# Security
+SESSION_SECRET=generate_random_32_byte_hex_string
+
+# Application
+NODE_ENV=development
+PORT=3002
+```
+
+### Service Setup
+- **ProtonMail**: Requires Business/Family plan with custom domain for SMTP
+- **Fish.Audio**: Sign up and obtain API key + model reference ID
+- **Session Secret**: Generate with `node -e "console.log(require('crypto').randomBytes(32).toString('hex'))"`
 
 ## Usage
 
@@ -277,89 +223,54 @@ tts-backend/
 - Real-time audio generation for shares
 - Works with both chunked and single audio files
 
-## Monitoring and Maintenance
+## Development and Troubleshooting
 
-### Systemd Commands
+### Development Commands
 ```bash
-sudo systemctl status tts-backend    # Check service status
-sudo journalctl -u tts-backend -f    # View application logs (live)
-sudo systemctl restart tts-backend   # Restart application
-sudo systemctl stop tts-backend      # Stop application
-sudo systemctl disable tts-backend   # Disable auto-start
+npm start          # Start development server
+npm run dev        # Start with nodemon (auto-restart)
+npm test          # Run tests (if available)
 ```
 
-### Cache Management
-```bash
-# Check cache sizes
-ls -la /var/www/stuart-speaks/cache/audio/
-du -sh /var/www/stuart-speaks/cache/
-
-# Clear user cache
-rm -rf /var/www/stuart-speaks/cache/audio/user@domain.com/
-```
-
-### Log Files
-- **Systemd logs**: `sudo journalctl -u tts-backend`
-- **Application logs**: `/var/www/stuart-speaks/logs/` (if configured)
-- **Nginx logs**: `/var/log/nginx/`
-
-## Troubleshooting
-
-### Common Issues
+### Common Development Issues
 
 #### Authentication Problems
 - **Email not received**: Check SMTP settings and ProtonMail token
 - **Code expired**: Codes expire after 10 minutes
-- **Invalid code**: Ensure correct 6-digit code entry
 - **Development bypass**: Use code "123456" in development mode
 
-#### TTS and Chunking Issues
+#### TTS Issues
 - **Fish.Audio API errors**: Verify API key and model ID
-- **500 errors**: Check Fish.Audio account status and credits
-- **Network issues**: Ensure server can reach api.fish.audio
-- **Chunking problems**: Check console logs for detailed chunking information
-- **Audio not combining**: Verify Web Audio API support in browser
-- **First chunk delays**: Normal behavior - subsequent chunks process in parallel
+- **Network issues**: Ensure connection to api.fish.audio
+- **Audio not playing**: Check browser console for errors
 
 #### Interface Issues
-- **Autocomplete not working**: Check for JavaScript errors in browser console
-- **Triple space not triggering**: Ensure text input has focus
-- **Character limit**: Now 1000 characters (up from 250 in v0.5.0)
-- **Mobile responsiveness**: Refresh page if layout appears broken
-
-#### Performance Issues
-- **Slow response**: Check Fish.Audio API latency and chunking efficiency
-- **High memory usage**: Monitor cache size, combined audio files, and system memory (`htop`)
-- **Port conflicts**: Ensure port 3002 is available
-- **Large audio files**: Combined chunks may be larger but provide better UX
-
-#### Deployment Issues
-- **SSH connection failed**: Check SSH key permissions and server access
-- **Port already in use**: Kill conflicting processes or use `sudo systemctl stop tts-backend`
-- **Application crashes**: Check systemd logs with `sudo journalctl -u tts-backend`
-- **Missing dependencies**: Ensure multer is installed for v0.8.0
-- **Service won't start**: Verify file permissions and .env configuration
+- **Autocomplete not working**: Check browser console for JavaScript errors
+- **Character limit**: Maximum 1000 characters supported
+- **Mobile issues**: Refresh page if layout appears broken
 
 ### Health Checks
 ```bash
 # Application health
 curl http://localhost:3002/stuartvoice/ping
 
-# Database connectivity (sessions)
-ls -la /var/www/stuart-speaks/sessions/
-
-# Cache functionality
-ls -la /var/www/stuart-speaks/cache/audio/
+# Check environment variables
+node -e "require('dotenv').config(); console.log('API Key:', process.env.FISH_API_KEY ? 'Set' : 'Missing')"
 ```
 
-## Security Considerations
+## Production Deployment
 
-- **Email verification**: Required for all new sessions
-- **Session isolation**: Users cannot access each other's data
-- **File permissions**: Ensure proper ownership of cache directories
-- **HTTPS**: Use nginx with SSL certificates in production
-- **API keys**: Keep environment variables secure
-- **Regular updates**: Keep dependencies updated
+📋 **For production deployment, monitoring, and maintenance instructions, see [DEPLOYMENT.md](./DEPLOYMENT.md)**
+
+The deployment guide includes:
+- Complete server setup procedures
+- SystemD service configuration
+- Nginx reverse proxy setup
+- SSL certificate installation
+- Security hardening guidelines
+- Monitoring and log management
+- Backup strategies
+- Troubleshooting production issues
 
 ## Contributing
 
