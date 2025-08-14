@@ -1,12 +1,21 @@
 {
   "name": "tts-backend",
   "version": "0.8.0",
-  "main": "index.js",
+  "main": "dist/server.js",
   "scripts": {
-    "start": "node server.js",
-    "dev": "NODE_ENV=development node server.js",
-    "prod": "NODE_ENV=production node server.js",
+    "start": "node dist/src/server.js",
+    "dev": "NODE_ENV=development ts-node src/server.ts",
+    "prod": "NODE_ENV=production node dist/src/server.js",
+    "build": "tsc",
+    "build:watch": "tsc --watch",
+    "clean": "rm -rf dist",
+    "prebuild": "npm run clean",
     "setup-dev": "./setup-local-dev.sh",
+    "lint": "eslint src/ public/ --ext .ts",
+    "lint:fix": "eslint src/ public/ --ext .ts --fix",
+    "format": "prettier --write \"src/**/*.ts\" \"public/**/*.ts\"",
+    "format:check": "prettier --check \"src/**/*.ts\" \"public/**/*.ts\"",
+    "ci": "npm run format:check && npm run lint && npm run build",
     "test": "echo \"Error: no test specified\" && exit 1"
   },
   "keywords": [],
@@ -14,6 +23,7 @@
   "license": "ISC",
   "description": "",
   "dependencies": {
+    "@msgpack/msgpack": "^3.1.2",
     "dotenv": "^16.5.0",
     "express": "^5.1.0",
     "express-session": "^1.18.1",
@@ -21,6 +31,24 @@
     "node-fetch": "^2.7.0",
     "nodemailer": "^7.0.3",
     "session-file-store": "^1.5.0",
-    "uuid": "^11.1.0"
+    "uuid": "^11.1.0",
+    "ws": "^8.18.0"
+  },
+  "devDependencies": {
+    "@types/express": "^5.0.0",
+    "@types/express-session": "^1.18.0",
+    "@types/multer": "^1.4.12",
+    "@types/node": "^22.10.1",
+    "@types/node-fetch": "^2.6.11",
+    "@types/nodemailer": "^6.4.17",
+    "@types/session-file-store": "^1.2.5",
+    "@types/uuid": "^10.0.0",
+    "@types/ws": "^8.5.13",
+    "@typescript-eslint/eslint-plugin": "^8.39.1",
+    "@typescript-eslint/parser": "^8.39.1",
+    "eslint": "^9.33.0",
+    "prettier": "^3.6.2",
+    "ts-node": "^10.9.2",
+    "typescript": "^5.7.2"
   }
 }

@@ -1,0 +1,24 @@
+# Dependencies
+node_modules/
+
+# Generated files
+dist/
+
+# Cache and runtime files
+cache/
+sessions/
+logs/
+uploads/
+
+# Config files that should maintain their format
+package-lock.json
+*.json
+
+# Other files that don't need formatting
+*.md
+*.log
+*.mp3
+*.opus
+*.wav
+*.service
+*.sh

@@ -4,7 +4,8 @@
 
 Based on the current working setup, the authentication system should follow this pattern:
 
-### Current Working Architecture
+### C
+urrent Working Architecture
 - **Static Files**: nginx serves from `/home/ubuntu/tts-backend/public/`
 - **API Calls**: nginx proxies `/stuart/api/*` to Node.js server on port 3001
 - **Node.js Server**: Runs in production mode (no base path), handles API endpoints

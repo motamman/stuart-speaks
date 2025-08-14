@@ -1,24 +1,51 @@
 # Dependencies
 node_modules/
 
-# Environment variables
-.env*
+# Environment variables (NEVER commit these!)
+.env
+.env.local
+.env.development
+.env.production
+.env.staging
+
+# Allow .env.example (template without sensitive data)
+!.env.example
 
 # Generated files
+dist/
 sessions/
 cache/
 uploads/
 logs/
 
+# Legacy JavaScript files (now converted to TypeScript)
+server.js
+public/app.js
+public/app.js.bak
+public/app.d.ts
+public/app.d.ts.map
+public/app.js.map
+
 # Logs
 *.log
 npm-debug.log*
+server-*.log
 
 # Runtime data
 pids
 *.pid
 *.seed
 *.pid.lock
+
+# Test and sample files
+sample*.mp3
+test_websocket*.opus
+*.tmp
+*.temp
+3002.txt
+
+# Service files (deployment specific)
+*.service
 
 # Optional npm cache directory
 .npm
@@ -38,7 +65,3 @@ pids
 # IDE
 .vscode/
 .idea/
-
-# Temporary files
-*.tmp
-*.temp
