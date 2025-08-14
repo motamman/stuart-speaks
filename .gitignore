@@ -5,10 +5,15 @@ node_modules/
 .env*
 
 # Generated files
+dist/
 sessions/
 cache/
 uploads/
 logs/
+
+# Legacy JavaScript files (now converted to TypeScript)
+server.js
+public/app.js
 
 # Logs
 *.log

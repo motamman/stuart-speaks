@@ -196,11 +196,9 @@ function showAuthSection() {
     mainApp.style.display = 'none';
 }
 function showMainApp() {
-    console.log('🔍 DEBUG: showMainApp() called');
     authSection.style.display = 'none';
     mainApp.style.display = 'block';
     userEmail.textContent = `Signed in as: ${currentUserEmail}`;
-    console.log('🔍 DEBUG: About to call loadAutofill()');
     loadAutofill();
     loadPhrases();
 }
@@ -283,37 +281,27 @@ async function logout() {
     showAuthSection();
 }
 async function loadAutofill(showLoadingIndicator = false) {
-    console.log('🔍 DEBUG: loadAutofill() called, showLoadingIndicator:', showLoadingIndicator);
     try {
         // Show loading indicator if requested
         if (showLoadingIndicator) {
             autofillContainer.innerHTML = '<div id="sync-indicator" style="text-align:center;color:#666;padding:10px;">🔄 Checking for new texts...</div>';
         }
-        console.log('🔍 DEBUG: Making fetch request to api/autofill');
         const resp = await fetch('api/autofill');
-        console.log('🔍 DEBUG: Fetch response status:', resp.status, resp.statusText);
         const data = await resp.json();
-        console.log('🔍 DEBUG: Received autofill data:', data);
         // Smart merge: check for new items
         const serverList = data.history || [];
-        console.log('🔍 DEBUG: Server list length:', serverList.length, 'items:', serverList);
         const newItems = serverList.filter(serverText => !localAutofillList.includes(serverText));
-        console.log('🔍 DEBUG: New items found:', newItems.length, 'items:', newItems);
         // Update local list
         localAutofillList = [...serverList];
-        console.log('🔍 DEBUG: Updated localAutofillList length:', localAutofillList.length);
         // Update autocomplete data
         userRecentTexts = [...serverList];
-        console.log('🔍 DEBUG: Updated userRecentTexts length:', userRecentTexts.length);
         // Show notification if new items found
         if (newItems.length > 0 && showLoadingIndicator) {
             showSyncNotification(`${newItems.length} new text${newItems.length > 1 ? 's' : ''} found from other devices`);
         }
         // Clear container
         autofillContainer.innerHTML = '';
-        console.log('🔍 DEBUG: Cleared autofill container');
         if (data.history && data.history.length > 0) {
-            console.log('🔍 DEBUG: Starting to populate autofill container with', data.history.length, 'items');
             // Check which texts have combined audio (batch request for efficiency)
             const checkPromises = data.history.map(async (text) => {
                 try {
@@ -331,8 +319,7 @@ async function loadAutofill(showLoadingIndicator = false) {
             });
             const combinedCheckResults = await Promise.all(checkPromises);
             const combinedMap = new Map(combinedCheckResults.map(r => [r.text, r.hasCombined]));
-            data.history.forEach((text, index) => {
-                console.log('🔍 DEBUG: Creating autofill entry', index + 1, 'of', data.history.length, 'for text:', text.substring(0, 50) + '...');
+            data.history.forEach((text) => {
                 const entry = document.createElement('div');
                 entry.className = 'recent-item';
                 const hasCombined = combinedMap.get(text);
@@ -446,19 +433,14 @@ async function loadAutofill(showLoadingIndicator = false) {
                 entry.appendChild(textSpan);
                 entry.appendChild(buttonContainer);
                 autofillContainer.appendChild(entry);
-                console.log('🔍 DEBUG: Added entry to autofill container');
             });
-            console.log('🔍 DEBUG: Finished populating autofill container with', data.history.length, 'entries');
         }
         else {
-            console.log('🔍 DEBUG: No history data found, showing "No recent texts found" message');
             autofillContainer.innerHTML = '<p>No recent texts found</p>';
         }
     }
     catch (err) {
-        console.error('🔍 DEBUG: Failed to load autofill:', err);
-        console.log('🔍 DEBUG: Setting autofill container to error state');
-        autofillContainer.innerHTML = '<p>Error loading recent texts</p>';
+        console.error('Failed to load autofill:', err);
     }
 }
 // Hide install button if already installed / in standalone

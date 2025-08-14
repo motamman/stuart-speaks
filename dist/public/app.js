@@ -1,40 +1,40 @@
 "use strict";
 // app.ts - TypeScript version with WebSocket TTS support
 // Authentication Elements
-const authSection = document.getElementById("authSection");
-const mainApp = document.getElementById("mainApp");
-const emailInput = document.getElementById("emailInput");
-const requestCodeBtn = document.getElementById("requestCodeBtn");
-const codeSection = document.getElementById("codeSection");
-const codeInput = document.getElementById("codeInput");
-const verifyCodeBtn = document.getElementById("verifyCodeBtn");
-const authStatus = document.getElementById("authStatus");
-const userEmail = document.getElementById("userEmail");
-const logoutBtn = document.getElementById("logoutBtn");
+const authSection = document.getElementById('authSection');
+const mainApp = document.getElementById('mainApp');
+const emailInput = document.getElementById('emailInput');
+const requestCodeBtn = document.getElementById('requestCodeBtn');
+const codeSection = document.getElementById('codeSection');
+const codeInput = document.getElementById('codeInput');
+const verifyCodeBtn = document.getElementById('verifyCodeBtn');
+const authStatus = document.getElementById('authStatus');
+const userEmail = document.getElementById('userEmail');
+const logoutBtn = document.getElementById('logoutBtn');
 // Main App Elements
-const installBtn = document.getElementById("installBtn");
-const textArea = document.getElementById("text");
-const btn = document.getElementById("speak");
-const player = document.getElementById("player");
-const phrasesContainer = document.getElementById("commonPhrases");
-const autofillContainer = document.getElementById("autofillList");
-const charCounter = document.getElementById("charCounter");
-const newPhraseInput = document.getElementById("newPhraseInput");
-const addPhraseBtn = document.getElementById("addPhraseBtn");
-const removeAllPhrasesBtn = document.getElementById("removeAllPhrasesBtn");
-const resetPhrasesBtn = document.getElementById("resetPhrasesBtn");
-const autocompleteDropdown = document.getElementById("autocompleteDropdown");
+const installBtn = document.getElementById('installBtn');
+const textArea = document.getElementById('text');
+const btn = document.getElementById('speak');
+const player = document.getElementById('player');
+const phrasesContainer = document.getElementById('commonPhrases');
+const autofillContainer = document.getElementById('autofillList');
+const charCounter = document.getElementById('charCounter');
+const newPhraseInput = document.getElementById('newPhraseInput');
+const addPhraseBtn = document.getElementById('addPhraseBtn');
+const removeAllPhrasesBtn = document.getElementById('removeAllPhrasesBtn');
+const resetPhrasesBtn = document.getElementById('resetPhrasesBtn');
+const autocompleteDropdown = document.getElementById('autocompleteDropdown');
 // Autocomplete state
 let currentSuggestions = [];
 let selectedSuggestionIndex = -1;
 let userPhrasesList = [];
 let userRecentTexts = [];
 // Tab functionality
-document.querySelectorAll('.tab-header').forEach(header => {
+document.querySelectorAll('.tab-header').forEach((header) => {
     header.addEventListener('click', () => {
         // Remove active class from all headers and content
-        document.querySelectorAll('.tab-header').forEach(h => h.classList.remove('active'));
-        document.querySelectorAll('.tab-content').forEach(c => c.classList.remove('active'));
+        document.querySelectorAll('.tab-header').forEach((h) => h.classList.remove('active'));
+        document.querySelectorAll('.tab-content').forEach((c) => c.classList.remove('active'));
         // Add active class to clicked header
         header.classList.add('active');
         // Show corresponding content
@@ -57,22 +57,22 @@ function getAutocompleteSuggestions(input) {
     const query = input.toLowerCase().trim();
     const suggestions = [];
     // 1. Search Common Phrases first
-    userPhrasesList.forEach(phrase => {
+    userPhrasesList.forEach((phrase) => {
         if (phrase.toLowerCase().includes(query)) {
             suggestions.push({
                 text: phrase,
                 type: 'phrase',
-                priority: phrase.toLowerCase().startsWith(query) ? 1 : 2
+                priority: phrase.toLowerCase().startsWith(query) ? 1 : 2,
             });
         }
     });
     // 2. Search Recent Texts second
-    userRecentTexts.forEach(text => {
-        if (text.toLowerCase().includes(query) && !suggestions.some(s => s.text === text)) {
+    userRecentTexts.forEach((text) => {
+        if (text.toLowerCase().includes(query) && !suggestions.some((s) => s.text === text)) {
             suggestions.push({
                 text: text,
                 type: 'recent',
-                priority: text.toLowerCase().startsWith(query) ? 3 : 4
+                priority: text.toLowerCase().startsWith(query) ? 3 : 4,
             });
         }
     });
@@ -166,7 +166,8 @@ let deferredPrompt;
 function showSyncNotification(message) {
     // Create temporary notification element
     const notification = document.createElement('div');
-    notification.style.cssText = 'background:#4CAF50;color:white;padding:8px;border-radius:4px;margin:10px 0;text-align:center;';
+    notification.style.cssText =
+        'background:#4CAF50;color:white;padding:8px;border-radius:4px;margin:10px 0;text-align:center;';
     notification.textContent = message;
     // Show for 3 seconds then remove
     autofillContainer.insertBefore(notification, autofillContainer.firstChild);
@@ -196,9 +197,11 @@ function showAuthSection() {
     mainApp.style.display = 'none';
 }
 function showMainApp() {
+    console.log('🔍 DEBUG: showMainApp() called');
     authSection.style.display = 'none';
     mainApp.style.display = 'block';
     userEmail.textContent = `Signed in as: ${currentUserEmail}`;
+    console.log('🔍 DEBUG: About to call loadAutofill()');
     loadAutofill();
     loadPhrases();
 }
@@ -214,7 +217,7 @@ async function requestVerificationCode() {
         const resp = await fetch('api/auth/request-code', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ email })
+            body: JSON.stringify({ email }),
         });
         const data = await resp.json();
         if (data.success) {
@@ -246,7 +249,7 @@ async function verifyCode() {
         const resp = await fetch('api/auth/verify-code', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ email, code })
+            body: JSON.stringify({ email, code }),
         });
         const data = await resp.json();
         if (data.success) {
@@ -281,34 +284,45 @@ async function logout() {
     showAuthSection();
 }
 async function loadAutofill(showLoadingIndicator = false) {
+    console.log('🔍 DEBUG: loadAutofill() called, showLoadingIndicator:', showLoadingIndicator);
     try {
         // Show loading indicator if requested
         if (showLoadingIndicator) {
-            autofillContainer.innerHTML = '<div id="sync-indicator" style="text-align:center;color:#666;padding:10px;">🔄 Checking for new texts...</div>';
+            autofillContainer.innerHTML =
+                '<div id="sync-indicator" style="text-align:center;color:#666;padding:10px;">🔄 Checking for new texts...</div>';
         }
+        console.log('🔍 DEBUG: Making fetch request to api/autofill');
         const resp = await fetch('api/autofill');
+        console.log('🔍 DEBUG: Fetch response status:', resp.status, resp.statusText);
         const data = await resp.json();
+        console.log('🔍 DEBUG: Received autofill data:', data);
         // Smart merge: check for new items
         const serverList = data.history || [];
-        const newItems = serverList.filter(serverText => !localAutofillList.includes(serverText));
+        console.log('🔍 DEBUG: Server list length:', serverList.length, 'items:', serverList);
+        const newItems = serverList.filter((serverText) => !localAutofillList.includes(serverText));
+        console.log('🔍 DEBUG: New items found:', newItems.length, 'items:', newItems);
         // Update local list
         localAutofillList = [...serverList];
+        console.log('🔍 DEBUG: Updated localAutofillList length:', localAutofillList.length);
         // Update autocomplete data
         userRecentTexts = [...serverList];
+        console.log('🔍 DEBUG: Updated userRecentTexts length:', userRecentTexts.length);
         // Show notification if new items found
         if (newItems.length > 0 && showLoadingIndicator) {
             showSyncNotification(`${newItems.length} new text${newItems.length > 1 ? 's' : ''} found from other devices`);
         }
         // Clear container
         autofillContainer.innerHTML = '';
+        console.log('🔍 DEBUG: Cleared autofill container');
         if (data.history && data.history.length > 0) {
+            console.log('🔍 DEBUG: Starting to populate autofill container with', data.history.length, 'items');
             // Check which texts have combined audio (batch request for efficiency)
             const checkPromises = data.history.map(async (text) => {
                 try {
                     const resp = await fetch('api/check-combined', {
                         method: 'POST',
                         headers: { 'Content-Type': 'application/json' },
-                        body: JSON.stringify({ text })
+                        body: JSON.stringify({ text }),
                     });
                     const result = await resp.json();
                     return { text, hasCombined: result.exists };
@@ -318,8 +332,9 @@ async function loadAutofill(showLoadingIndicator = false) {
                 }
             });
             const combinedCheckResults = await Promise.all(checkPromises);
-            const combinedMap = new Map(combinedCheckResults.map(r => [r.text, r.hasCombined]));
-            data.history.forEach((text) => {
+            const combinedMap = new Map(combinedCheckResults.map((r) => [r.text, r.hasCombined]));
+            data.history.forEach((text, index) => {
+                console.log('🔍 DEBUG: Creating autofill entry', index + 1, 'of', data.history.length, 'for text:', text.substring(0, 50) + '...');
                 const entry = document.createElement('div');
                 entry.className = 'recent-item';
                 const hasCombined = combinedMap.get(text);
@@ -343,7 +358,7 @@ async function loadAutofill(showLoadingIndicator = false) {
                         const checkResp = await fetch('api/check-combined', {
                             method: 'POST',
                             headers: { 'Content-Type': 'application/json' },
-                            body: JSON.stringify({ text })
+                            body: JSON.stringify({ text }),
                         });
                         if (checkResp.ok) {
                             const checkData = await checkResp.json();
@@ -371,7 +386,7 @@ async function loadAutofill(showLoadingIndicator = false) {
                         const resp = await fetch('api/tts', {
                             method: 'POST',
                             headers: { 'Content-Type': 'application/json' },
-                            body: JSON.stringify({ text })
+                            body: JSON.stringify({ text }),
                         });
                         if (resp.ok) {
                             const blob = await resp.blob();
@@ -402,7 +417,7 @@ async function loadAutofill(showLoadingIndicator = false) {
                     if (confirm('Delete this text from history?')) {
                         try {
                             const resp = await fetch(`api/history/${encodeURIComponent(text)}`, {
-                                method: 'DELETE'
+                                method: 'DELETE',
                             });
                             if (resp.ok) {
                                 entry.remove();
@@ -433,22 +448,28 @@ async function loadAutofill(showLoadingIndicator = false) {
                 entry.appendChild(textSpan);
                 entry.appendChild(buttonContainer);
                 autofillContainer.appendChild(entry);
+                console.log('🔍 DEBUG: Added entry to autofill container');
             });
+            console.log('🔍 DEBUG: Finished populating autofill container with', data.history.length, 'entries');
         }
         else {
+            console.log('🔍 DEBUG: No history data found, showing "No recent texts found" message');
             autofillContainer.innerHTML = '<p>No recent texts found</p>';
         }
     }
     catch (err) {
-        console.error('Failed to load autofill:', err);
+        console.error('🔍 DEBUG: Failed to load autofill:', err);
+        console.log('🔍 DEBUG: Setting autofill container to error state');
+        autofillContainer.innerHTML = '<p>Error loading recent texts</p>';
     }
 }
 // Hide install button if already installed / in standalone
-if (window.matchMedia('(display-mode: standalone)').matches || window.navigator.standalone === true) {
+if (window.matchMedia('(display-mode: standalone)').matches ||
+    window.navigator.standalone === true) {
     installBtn.style.display = 'none';
 }
 // PWA Install Events
-window.addEventListener('beforeinstallprompt', e => {
+window.addEventListener('beforeinstallprompt', (e) => {
     e.preventDefault();
     deferredPrompt = e;
     installBtn.style.display = 'block';
@@ -471,8 +492,8 @@ if ('serviceWorker' in navigator) {
     window.addEventListener('load', () => {
         navigator.serviceWorker
             .register('/BASE_PATH/sw.js', { scope: '/BASE_PATH/' })
-            .then(reg => console.log('SW registered with scope:', reg.scope))
-            .catch(err => console.error('SW registration failed:', err));
+            .then((reg) => console.log('SW registered with scope:', reg.scope))
+            .catch((err) => console.error('SW registration failed:', err));
     });
 }
 // Load and display user phrases
@@ -484,7 +505,7 @@ async function loadPhrases() {
         phrasesContainer.innerHTML = '';
         const phrases = data.phrases || [];
         if (phrases.length > 0) {
-            phrases.forEach(phrase => {
+            phrases.forEach((phrase) => {
                 createPhraseButton(phrase);
             });
         }
@@ -510,21 +531,21 @@ function updateRemoveAllButtonState(phraseCount) {
     }
 }
 function createPhraseButton(phrase) {
-    const phraseContainer = document.createElement("div");
-    phraseContainer.className = "phrase-container";
-    const phraseBtn = document.createElement("button");
-    phraseBtn.className = "phrase-button";
+    const phraseContainer = document.createElement('div');
+    phraseContainer.className = 'phrase-container';
+    const phraseBtn = document.createElement('button');
+    phraseBtn.className = 'phrase-button';
     phraseBtn.textContent = phrase;
-    phraseBtn.addEventListener("click", () => {
+    phraseBtn.addEventListener('click', () => {
         // Add space after phrase if it doesn't already end with one
         const phraseWithSpace = phrase.endsWith(' ') ? phrase : phrase + ' ';
         insertTextAtCursor(phraseWithSpace);
     });
-    const removeBtn = document.createElement("button");
-    removeBtn.className = "phrase-remove-btn";
-    removeBtn.textContent = "×";
-    removeBtn.title = "Remove this phrase";
-    removeBtn.addEventListener("click", async (e) => {
+    const removeBtn = document.createElement('button');
+    removeBtn.className = 'phrase-remove-btn';
+    removeBtn.textContent = '×';
+    removeBtn.title = 'Remove this phrase';
+    removeBtn.addEventListener('click', async (e) => {
         e.stopPropagation();
         if (confirm(`Remove phrase: "${phrase}"?`)) {
             await removePhrase(phrase);
@@ -537,14 +558,14 @@ function createPhraseButton(phrase) {
 async function addPhrase() {
     const phrase = newPhraseInput.value.trim();
     if (!phrase) {
-        alert("Please enter a phrase");
+        alert('Please enter a phrase');
         return;
     }
     try {
         const resp = await fetch('api/phrases', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ phrase })
+            body: JSON.stringify({ phrase }),
         });
         const data = await resp.json();
         if (data.success) {
@@ -563,7 +584,7 @@ async function addPhrase() {
 async function removePhrase(phrase) {
     try {
         const resp = await fetch(`api/phrases/${encodeURIComponent(phrase)}`, {
-            method: 'DELETE'
+            method: 'DELETE',
         });
         const data = await resp.json();
         if (data.success) {
@@ -590,7 +611,7 @@ async function removeAllPhrases() {
         const resp = await fetch('api/phrases', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ removeAll: true })
+            body: JSON.stringify({ removeAll: true }),
         });
         const data = await resp.json();
         if (data.success) {
@@ -614,7 +635,7 @@ async function resetPhrases() {
         const resp = await fetch('api/phrases', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ resetToDefaults: true })
+            body: JSON.stringify({ resetToDefaults: true }),
         });
         if (resp.ok) {
             loadPhrases(); // Reload all phrases
@@ -684,7 +705,7 @@ textArea.addEventListener('keydown', (e) => {
         return; // If autocomplete handled the key, don't continue
     }
     // Handle existing triple-space and enter logic
-    if (e.key === "Enter" && !e.shiftKey) {
+    if (e.key === 'Enter' && !e.shiftKey) {
         e.preventDefault();
         hideAutocomplete();
         doSpeak();
@@ -709,7 +730,7 @@ function handleTripleSpace(e) {
             lastKeyPresses.shift();
         }
         // Check for triple space
-        if (lastKeyPresses.length === 3 && lastKeyPresses.every(key => key === ' ')) {
+        if (lastKeyPresses.length === 3 && lastKeyPresses.every((key) => key === ' ')) {
             console.log('🎯 Triple space detected - triggering speak!');
             // Hide autocomplete
             hideAutocomplete();
@@ -751,7 +772,7 @@ function logAudioState(context, audioUrl = null) {
         muted: player.muted,
         readyState: player.readyState,
         networkState: player.networkState,
-        audioUrl: audioUrl
+        audioUrl: audioUrl,
     });
     return debugId;
 }
@@ -782,7 +803,7 @@ function chunkText(text) {
         for (let i = 0; i < sentences.length; i++) {
             const sentence = sentences[i].trim();
             const potentialChunk = currentChunk === '' ? sentence : currentChunk + ' ' + sentence;
-            // If adding this sentence would make the chunk too long (over ~100 chars) 
+            // If adding this sentence would make the chunk too long (over ~100 chars)
             // and we already have a chunk that meets minimum length, start a new chunk
             if (currentChunk !== '' &&
                 potentialChunk.length > 100 &&
@@ -959,7 +980,7 @@ function audioBufferToWav(audioBuffer) {
     for (let i = 0; i < audioBuffer.length; i++) {
         for (let channel = 0; channel < numChannels; channel++) {
             const sample = Math.max(-1, Math.min(1, audioBuffer.getChannelData(channel)[i]));
-            view.setInt16(offset, sample * 0x7FFF, true);
+            view.setInt16(offset, sample * 0x7fff, true);
             offset += 2;
         }
     }
@@ -974,7 +995,7 @@ async function cacheCombinedAudio(text, audioBlob) {
         formData.append('text', text);
         const response = await fetch('api/cache-combined', {
             method: 'POST',
-            body: formData
+            body: formData,
         });
         if (response.ok) {
             const result = await response.json();
@@ -1010,8 +1031,8 @@ async function addToHistory(text) {
             body: JSON.stringify({
                 text: text,
                 bypassCache: false,
-                addToHistoryOnly: true // Special flag to only add to history
-            })
+                addToHistoryOnly: true, // Special flag to only add to history
+            }),
         });
     }
     catch (error) {
@@ -1030,10 +1051,10 @@ async function doSpeak(forcedText) {
         // If only one chunk, use original logic
         if (chunks.length === 1) {
             console.log('🔄 Single chunk - using standard TTS flow');
-            const resp = await fetch("api/tts", {
-                method: "POST",
-                headers: { "Content-Type": "application/json" },
-                body: JSON.stringify({ text })
+            const resp = await fetch('api/tts', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ text }),
             });
             if (resp.status === 401) {
                 isAuthenticated = false;
@@ -1057,14 +1078,14 @@ async function doSpeak(forcedText) {
             // Generate audio for all chunks concurrently
             const chunkPromises = chunks.map(async (chunk, index) => {
                 console.log(`📡 API call ${index + 1}: "${chunk.substring(0, 50)}..."`);
-                const resp = await fetch("api/tts", {
-                    method: "POST",
-                    headers: { "Content-Type": "application/json" },
+                const resp = await fetch('api/tts', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify({
                         text: chunk,
                         isChunk: true, // Flag to prevent individual chunk caching in history
-                        originalText: text // Include original text for proper caching
-                    })
+                        originalText: text, // Include original text for proper caching
+                    }),
                 });
                 if (resp.status === 401) {
                     isAuthenticated = false;
@@ -1084,7 +1105,8 @@ async function doSpeak(forcedText) {
             console.log(`🎯 Waiting for ${chunks.length} chunks to be generated...`);
             // Process chunks as they complete, play first chunk immediately
             for (let i = 0; i < chunkPromises.length; i++) {
-                chunkPromises[i].then(result => {
+                chunkPromises[i]
+                    .then((result) => {
                     chunkResults[result.index] = result;
                     console.log(`📦 Chunk ${result.index + 1}/${chunks.length} ready`);
                     // Play first chunk immediately when ready
@@ -1098,10 +1120,11 @@ async function doSpeak(forcedText) {
                             console.log('🎧 FIRST CHUNK ENDED EVENT FIRED!');
                             logAudioState('FIRST CHUNK ENDED');
                             // Build queue from available chunks (excluding first chunk)
-                            const availableQueue = chunkResults.filter(chunk => chunk && chunk.index > 0)
+                            const availableQueue = chunkResults
+                                .filter((chunk) => chunk && chunk.index > 0)
                                 .sort((a, b) => a.index - b.index)
-                                .map(chunk => chunk.url);
-                            console.log(`📋 Available queue has ${availableQueue.length} remaining chunks:`, availableQueue.map(url => url.substring(0, 30) + '...'));
+                                .map((chunk) => chunk.url);
+                            console.log(`📋 Available queue has ${availableQueue.length} remaining chunks:`, availableQueue.map((url) => url.substring(0, 30) + '...'));
                             if (availableQueue.length > 0) {
                                 console.log('🎵 First chunk ended, continuing with remaining chunks...');
                                 // Set global audioQueue for playAudioQueue function
@@ -1116,15 +1139,18 @@ async function doSpeak(forcedText) {
                         console.log('🎧 Setting up ENDED event listener for first chunk IMMEDIATELY...');
                         player.addEventListener('ended', continuePlayback, { once: true });
                         console.log('✅ ENDED event listener attached to first chunk BEFORE playback');
-                        playAudio(result.url).then(() => {
+                        playAudio(result.url)
+                            .then(() => {
                             console.log('▶️ First chunk playback started successfully');
                             logAudioState('FIRST CHUNK PLAYING');
-                        }).catch(err => {
+                        })
+                            .catch((err) => {
                             console.error('❌ First chunk playback error:', err);
                             logAudioState('FIRST CHUNK FAILED');
                         });
                     }
-                }).catch(err => {
+                })
+                    .catch((err) => {
                     console.error(`❌ Chunk ${i + 1} generation failed:`, err);
                 });
             }
@@ -1135,7 +1161,7 @@ async function doSpeak(forcedText) {
             console.log(`⚡ All chunks generated in ${generationTime}ms`);
             // Set up final queue and handle case where first chunk already ended
             currentChunks = chunkResults;
-            const finalQueue = chunkResults.slice(1).map(result => result.url);
+            const finalQueue = chunkResults.slice(1).map((result) => result.url);
             console.log(`📋 Final queue prepared with ${finalQueue.length} remaining chunks`);
             // Check if first chunk already ended while we were waiting
             if (player.ended || player.paused) {
@@ -1157,7 +1183,7 @@ async function doSpeak(forcedText) {
             loadAutofill();
         }
         if (!forcedText) {
-            textArea.value = "";
+            textArea.value = '';
             updateCharCounter();
         }
     }
@@ -1168,7 +1194,7 @@ async function doSpeak(forcedText) {
             showAuthSection();
         }
         else {
-            alert("Error: " + err);
+            alert('Error: ' + err);
         }
     }
     finally {
@@ -1178,36 +1204,36 @@ async function doSpeak(forcedText) {
     }
 }
 // Authentication Event Bindings
-requestCodeBtn.addEventListener("click", requestVerificationCode);
-verifyCodeBtn.addEventListener("click", verifyCode);
-logoutBtn.addEventListener("click", logout);
+requestCodeBtn.addEventListener('click', requestVerificationCode);
+verifyCodeBtn.addEventListener('click', verifyCode);
+logoutBtn.addEventListener('click', logout);
 // Enter key for email and code inputs
-emailInput.addEventListener("keydown", e => {
-    if (e.key === "Enter") {
+emailInput.addEventListener('keydown', (e) => {
+    if (e.key === 'Enter') {
         e.preventDefault();
         requestVerificationCode();
     }
 });
-codeInput.addEventListener("keydown", e => {
-    if (e.key === "Enter") {
+codeInput.addEventListener('keydown', (e) => {
+    if (e.key === 'Enter') {
         e.preventDefault();
         verifyCode();
     }
 });
 // Main App Event Bindings
-btn.addEventListener("click", () => doSpeak());
+btn.addEventListener('click', () => doSpeak());
 // Refresh autofill button
-const refreshAutofillBtn = document.getElementById("refreshAutofillBtn");
-refreshAutofillBtn.addEventListener("click", () => {
+const refreshAutofillBtn = document.getElementById('refreshAutofillBtn');
+refreshAutofillBtn.addEventListener('click', () => {
     loadAutofill(true); // Show loading indicator and notifications
 });
 // Phrase management event listeners
-addPhraseBtn.addEventListener("click", addPhrase);
-removeAllPhrasesBtn.addEventListener("click", removeAllPhrases);
-resetPhrasesBtn.addEventListener("click", resetPhrases);
+addPhraseBtn.addEventListener('click', addPhrase);
+removeAllPhrasesBtn.addEventListener('click', removeAllPhrases);
+resetPhrasesBtn.addEventListener('click', resetPhrases);
 // Enter key for new phrase input
-newPhraseInput.addEventListener("keydown", e => {
-    if (e.key === "Enter") {
+newPhraseInput.addEventListener('keydown', (e) => {
+    if (e.key === 'Enter') {
         e.preventDefault();
         addPhrase();
     }

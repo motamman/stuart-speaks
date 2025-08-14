@@ -1,29 +1,29 @@
 interface AutocompleteSuggestion {
-    text: string;
-    type: 'phrase' | 'recent';
-    priority: number;
+  text: string;
+  type: 'phrase' | 'recent';
+  priority: number;
 }
 interface AudioChunk {
-    index: number;
-    url: string;
-    chunk: string;
-    blob: Blob;
+  index: number;
+  url: string;
+  chunk: string;
+  blob: Blob;
 }
 interface TTSRequest {
-    text: string;
-    bypassCache?: boolean;
-    isChunk?: boolean;
-    originalText?: string;
-    addToHistoryOnly?: boolean;
+  text: string;
+  bypassCache?: boolean;
+  isChunk?: boolean;
+  originalText?: string;
+  addToHistoryOnly?: boolean;
 }
 interface AuthRequest {
-    email: string;
-    code?: string;
+  email: string;
+  code?: string;
 }
 interface PhraseRequest {
-    phrase?: string;
-    resetToDefaults?: boolean;
-    removeAll?: boolean;
+  phrase?: string;
+  resetToDefaults?: boolean;
+  removeAll?: boolean;
 }
 declare const authSection: HTMLElement;
 declare const mainApp: HTMLElement;
@@ -86,7 +86,10 @@ declare let currentChunks: AudioChunk[];
 declare function playAudio(audioUrl: string): Promise<void>;
 declare function chunkText(text: string): string[];
 declare function playAudioQueue(): Promise<void>;
-declare function combineAudioChunks(chunkResults: AudioChunk[], originalText: string): Promise<void>;
+declare function combineAudioChunks(
+  chunkResults: AudioChunk[],
+  originalText: string
+): Promise<void>;
 declare function audioBufferToWav(audioBuffer: AudioBuffer): Blob;
 declare function cacheCombinedAudio(text: string, audioBlob: Blob): Promise<void>;
 declare function addToHistory(text: string): Promise<void>;
