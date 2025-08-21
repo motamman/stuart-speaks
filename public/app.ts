@@ -1,3 +1,4 @@
+/* eslint-env browser */
 // app.ts - TypeScript version with WebSocket TTS support
 
 // Type definitions
@@ -54,7 +55,7 @@ const adminTabs = document.querySelectorAll('.admin-tab') as NodeListOf<HTMLButt
 const adminTabContents = document.querySelectorAll('.admin-tab-content') as NodeListOf<HTMLElement>;
 const configForm = document.getElementById('configForm') as HTMLFormElement;
 const loadConfigBtn = document.getElementById('loadConfigBtn') as HTMLButtonElement;
-const saveConfigBtn = document.getElementById('saveConfigBtn') as HTMLButtonElement;
+const _saveConfigBtn = document.getElementById('saveConfigBtn') as HTMLButtonElement;
 const whitelistContainer = document.getElementById('whitelistContainer') as HTMLElement;
 const newWhitelistEmail = document.getElementById('newWhitelistEmail') as HTMLInputElement;
 const addEmailBtn = document.getElementById('addEmailBtn') as HTMLButtonElement;

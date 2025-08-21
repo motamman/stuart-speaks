@@ -31,7 +31,7 @@ function getEncryptionKey(): string {
   } catch (error) {
     console.warn('Failed to read encryption key file:', error);
   }
-  
+
   // Generate new key and save it
   const newKey = crypto.randomBytes(32).toString('hex');
   try {
@@ -103,37 +103,43 @@ export function loadConfig(): StoredConfig {
     nodeEnv: process.env.NODE_ENV || 'development',
     port: parseInt(process.env.PORT || '3003'),
     encrypted: false,
-    version: 1
+    version: 1,
   };
 
   try {
     if (fs.existsSync(CONFIG_FILE)) {
       const fileContent = fs.readFileSync(CONFIG_FILE, 'utf8');
       const storedConfig = JSON.parse(fileContent) as StoredConfig;
-      
+
       // Decrypt sensitive fields if encrypted
       if (storedConfig.encrypted) {
         try {
           if (storedConfig.fishApiKey) storedConfig.fishApiKey = decrypt(storedConfig.fishApiKey);
-          if (storedConfig.fishModelId) storedConfig.fishModelId = decrypt(storedConfig.fishModelId);
-          if (storedConfig.protonSmtpToken) storedConfig.protonSmtpToken = decrypt(storedConfig.protonSmtpToken);
-          if (storedConfig.googleClientSecret) storedConfig.googleClientSecret = decrypt(storedConfig.googleClientSecret);
-          if (storedConfig.sessionSecret) storedConfig.sessionSecret = decrypt(storedConfig.sessionSecret);
-        } catch (decryptError) {
-          console.error('Decryption failed - config file may be corrupted. Creating backup and using defaults with preserved whitelist.');
-          
+          if (storedConfig.fishModelId)
+            storedConfig.fishModelId = decrypt(storedConfig.fishModelId);
+          if (storedConfig.protonSmtpToken)
+            storedConfig.protonSmtpToken = decrypt(storedConfig.protonSmtpToken);
+          if (storedConfig.googleClientSecret)
+            storedConfig.googleClientSecret = decrypt(storedConfig.googleClientSecret);
+          if (storedConfig.sessionSecret)
+            storedConfig.sessionSecret = decrypt(storedConfig.sessionSecret);
+        } catch (_decryptError) {
+          console.error(
+            'Decryption failed - config file may be corrupted. Creating backup and using defaults with preserved whitelist.'
+          );
+
           // Backup the corrupted file
           const backupFile = CONFIG_FILE + '.corrupted.' + Date.now();
           fs.copyFileSync(CONFIG_FILE, backupFile);
-          
+
           // Email whitelist is now stored separately, no need to preserve from config
-          
+
           // Delete the corrupted file so it can be recreated
           fs.unlinkSync(CONFIG_FILE);
           return defaultConfig;
         }
       }
-      
+
       // Merge with defaults (emailWhitelist is handled separately)
       const mergedConfig = { ...defaultConfig, ...storedConfig };
       return mergedConfig;
@@ -155,9 +161,9 @@ export function saveConfig(config: Partial<StoredConfig>): boolean {
   try {
     const currentConfig = loadConfig();
     const updatedConfig: StoredConfig = { ...currentConfig };
-    
+
     // Only update fields that are not masked values
-    Object.keys(config).forEach(key => {
+    Object.keys(config).forEach((key) => {
       const value = config[key as keyof StoredConfig];
       if (value !== undefined) {
         if (typeof value === 'string' && isMaskedValue(value)) {
@@ -169,18 +175,21 @@ export function saveConfig(config: Partial<StoredConfig>): boolean {
         }
       }
     });
-    
+
     // Create encrypted version for storage
     const configToStore: StoredConfig = { ...updatedConfig };
     configToStore.encrypted = true;
-    
+
     // Encrypt sensitive fields
     if (configToStore.fishApiKey) configToStore.fishApiKey = encrypt(configToStore.fishApiKey);
     if (configToStore.fishModelId) configToStore.fishModelId = encrypt(configToStore.fishModelId);
-    if (configToStore.protonSmtpToken) configToStore.protonSmtpToken = encrypt(configToStore.protonSmtpToken);
-    if (configToStore.googleClientSecret) configToStore.googleClientSecret = encrypt(configToStore.googleClientSecret);
-    if (configToStore.sessionSecret) configToStore.sessionSecret = encrypt(configToStore.sessionSecret);
-    
+    if (configToStore.protonSmtpToken)
+      configToStore.protonSmtpToken = encrypt(configToStore.protonSmtpToken);
+    if (configToStore.googleClientSecret)
+      configToStore.googleClientSecret = encrypt(configToStore.googleClientSecret);
+    if (configToStore.sessionSecret)
+      configToStore.sessionSecret = encrypt(configToStore.sessionSecret);
+
     fs.writeFileSync(CONFIG_FILE, JSON.stringify(configToStore, null, 2));
     console.log('Configuration saved successfully');
     return true;
@@ -200,7 +209,7 @@ export function getMaskedConfig(): StoredConfig {
     protonSmtpToken: maskValue(config.protonSmtpToken || ''),
     googleClientSecret: maskValue(config.googleClientSecret || ''),
     sessionSecret: maskValue(config.sessionSecret || ''),
-    encrypted: false // Don't show encryption status in UI
+    encrypted: false, // Don't show encryption status in UI
   };
 }
 
@@ -220,7 +229,9 @@ function loadWhitelist(): string[] {
   try {
     if (fs.existsSync(WHITELIST_FILE)) {
       const whitelistData = JSON.parse(fs.readFileSync(WHITELIST_FILE, 'utf8'));
-      const emails = Array.isArray(whitelistData.emails) ? whitelistData.emails : [VERIFIED_ADMIN_EMAIL];
+      const emails = Array.isArray(whitelistData.emails)
+        ? whitelistData.emails
+        : [VERIFIED_ADMIN_EMAIL];
       // Always ensure admin email is included
       if (!emails.includes(VERIFIED_ADMIN_EMAIL)) {
         emails.unshift(VERIFIED_ADMIN_EMAIL);
@@ -230,7 +241,7 @@ function loadWhitelist(): string[] {
   } catch (error) {
     console.error('Error loading whitelist file:', error);
   }
-  
+
   return [VERIFIED_ADMIN_EMAIL]; // Default to just admin email
 }
 
@@ -241,9 +252,9 @@ function saveWhitelist(emails: string[]): boolean {
     const whitelistData = {
       emails: emailsWithAdmin,
       lastUpdated: new Date().toISOString(),
-      version: 1
+      version: 1,
     };
-    
+
     fs.writeFileSync(WHITELIST_FILE, JSON.stringify(whitelistData, null, 2));
     console.log('Email whitelist saved successfully');
     return true;
@@ -277,16 +288,16 @@ export function removeFromWhitelist(email: string): boolean {
   if (email.toLowerCase() === VERIFIED_ADMIN_EMAIL.toLowerCase()) {
     return false; // Cannot remove admin
   }
-  
+
   const currentList = loadWhitelist();
-  const filteredList = currentList.filter(e => e.toLowerCase() !== email.toLowerCase());
+  const filteredList = currentList.filter((e) => e.toLowerCase() !== email.toLowerCase());
   return saveWhitelist(filteredList);
 }
 
 // Update environment variables from config (for runtime use)
 export function updateEnvironmentFromConfig(): void {
   const config = loadConfig();
-  
+
   if (config.fishApiKey) process.env.FISH_API_KEY = config.fishApiKey;
   if (config.fishModelId) process.env.FISH_MODEL_ID = config.fishModelId;
   if (config.protonEmail) process.env.PROTON_EMAIL = config.protonEmail;
