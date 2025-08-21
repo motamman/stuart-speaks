@@ -2,15 +2,17 @@
 
 # Stuart Speaks - Text-to-Speech Backend
 
-**This app was built to help my dear friend Stuart communicate with his old voice after being diagnosed with ALS. I used fish.audio to create the model of his voice. You will need to have recordings of the person's voice you want to emulate. You don't need much. Create an account with Fish and follow there instructions. Once the model is created, you will need to plug in you API Key and Model ID into the config. NB: Only the admin can these settings. See below for more details.
-
-There are also loads of off the shelf models that can be used, including Sponge Bob Square pants.
-
-If you want to use Google autheication you will need to also get a googele client ID and client secret. If you don't, then the standard email login system.**
-
-
-
 A Node.js TypeScript application providing text-to-speech functionality using Fish.Audio API with hybrid authentication (Google OAuth + email fallback), admin configuration interface, and email whitelist security.
+
+**This app was built to help my dear friend Stuart communicate with his old voice after being diagnosed with ALS. I used [fish.audio](https://fish.audio/) to create the model of his voice. You will need to have recordings of the person's voice you want to emulate. You don't need much. Create an account with Fish and follow their instructions. Once the model is created, you will need to plug in your API Key and Model ID into the config. NB: Only the admin can change these settings. See below for more details.
+
+There are also loads of off the shelf models that can be used, including SpongeBob SquarePants.
+
+If you want to use Google authentication you will need to also get a [Google client ID](https://console.cloud.google.com/apis/credentials) and client secret. If you don't, then the standard email login system will work.
+
+I run this on an AWS micro Ubuntu instance. 
+
+**
 
 ## Quick Start (Development)
 
