@@ -36,6 +36,7 @@ interface PhraseRequest {
 // Authentication Elements
 const authSection = document.getElementById('authSection') as HTMLElement;
 const mainApp = document.getElementById('mainApp') as HTMLElement;
+const googleSignInBtn = document.getElementById('googleSignInBtn') as HTMLButtonElement;
 const emailInput = document.getElementById('emailInput') as HTMLInputElement;
 const requestCodeBtn = document.getElementById('requestCodeBtn') as HTMLButtonElement;
 const codeSection = document.getElementById('codeSection') as HTMLElement;
@@ -44,6 +45,30 @@ const verifyCodeBtn = document.getElementById('verifyCodeBtn') as HTMLButtonElem
 const authStatus = document.getElementById('authStatus') as HTMLElement;
 const userEmail = document.getElementById('userEmail') as HTMLElement;
 const logoutBtn = document.getElementById('logoutBtn') as HTMLButtonElement;
+const adminToggleBtn = document.getElementById('adminToggleBtn') as HTMLButtonElement;
+
+// Admin Panel Elements
+const adminPanel = document.getElementById('adminPanel') as HTMLElement;
+const toggleAdminPanel = document.getElementById('toggleAdminPanel') as HTMLButtonElement;
+const adminTabs = document.querySelectorAll('.admin-tab') as NodeListOf<HTMLButtonElement>;
+const adminTabContents = document.querySelectorAll('.admin-tab-content') as NodeListOf<HTMLElement>;
+const configForm = document.getElementById('configForm') as HTMLFormElement;
+const loadConfigBtn = document.getElementById('loadConfigBtn') as HTMLButtonElement;
+const saveConfigBtn = document.getElementById('saveConfigBtn') as HTMLButtonElement;
+const whitelistContainer = document.getElementById('whitelistContainer') as HTMLElement;
+const newWhitelistEmail = document.getElementById('newWhitelistEmail') as HTMLInputElement;
+const addEmailBtn = document.getElementById('addEmailBtn') as HTMLButtonElement;
+const adminStatus = document.getElementById('adminStatus') as HTMLElement;
+
+// Configuration form inputs
+const fishApiKeyInput = document.getElementById('fishApiKey') as HTMLInputElement;
+const fishModelIdInput = document.getElementById('fishModelId') as HTMLInputElement;
+const protonEmailInput = document.getElementById('protonEmail') as HTMLInputElement;
+const protonSmtpTokenInput = document.getElementById('protonSmtpToken') as HTMLInputElement;
+const googleClientIdInput = document.getElementById('googleClientId') as HTMLInputElement;
+const googleClientSecretInput = document.getElementById('googleClientSecret') as HTMLInputElement;
+const nodeEnvSelect = document.getElementById('nodeEnv') as HTMLSelectElement;
+const portInput = document.getElementById('port') as HTMLInputElement;
 
 // Main App Elements
 const installBtn = document.getElementById('installBtn') as HTMLButtonElement;
@@ -237,13 +262,31 @@ function showSyncNotification(message: string): void {
 // Authentication Functions
 async function checkAuthStatus(): Promise<void> {
   try {
+    // Check for OAuth error parameters
+    const urlParams = new URLSearchParams(window.location.search);
+    const error = urlParams.get('error');
+    if (error) {
+      let errorMessage = 'Authentication failed';
+      if (error === 'oauth_failed') {
+        errorMessage = 'Google sign-in failed. Please try again or use email authentication.';
+      } else if (error === 'no_email') {
+        errorMessage = 'No email found in Google account. Please use email authentication.';
+      } else if (error === 'email_not_authorized') {
+        errorMessage = 'Access denied. Your email is not authorized to use this application.';
+      }
+      authStatus.textContent = errorMessage;
+      authStatus.style.color = '#dc2626';
+      // Clean the URL
+      window.history.replaceState({}, document.title, window.location.pathname);
+    }
+
     const resp = await fetch('api/auth/status');
     const data = await resp.json();
 
     if (data.authenticated) {
       isAuthenticated = true;
       currentUserEmail = data.email;
-      showMainApp();
+      showMainApp(data);
     } else {
       showAuthSection();
     }
@@ -258,14 +301,24 @@ function showAuthSection(): void {
   mainApp.style.display = 'none';
 }
 
-function showMainApp(): void {
+function showMainApp(authData?: any): void {
   console.log('🔍 DEBUG: showMainApp() called');
   authSection.style.display = 'none';
   mainApp.style.display = 'block';
-  userEmail.textContent = `Signed in as: ${currentUserEmail}`;
+  
+  // Display user info with auth method
+  let displayText = `Signed in as: ${currentUserEmail}`;
+  if (authData?.name && authData?.authMethod === 'google') {
+    displayText = `Signed in as: ${authData.name} (${currentUserEmail})`;
+  }
+  userEmail.textContent = displayText;
+  
   console.log('🔍 DEBUG: About to call loadAutofill()');
   loadAutofill();
   loadPhrases();
+  
+  // Check if user is admin and show admin panel
+  showAdminPanel();
 }
 
 async function requestVerificationCode(): Promise<void> {
@@ -350,6 +403,208 @@ async function logout(): Promise<void> {
   codeSection.style.display = 'none';
   authStatus.textContent = '';
   showAuthSection();
+}
+
+// Admin Panel Functions
+async function checkAdminStatus(): Promise<boolean> {
+  try {
+    const resp = await fetch('api/admin/status');
+    const data = await resp.json();
+    return data.isAdmin || false;
+  } catch (err) {
+    console.error('Admin status check failed:', err);
+    return false;
+  }
+}
+
+async function showAdminPanel(): Promise<void> {
+  const isAdmin = await checkAdminStatus();
+  if (isAdmin) {
+    adminToggleBtn.style.display = 'block';
+    loadConfig();
+    loadWhitelist();
+  } else {
+    adminToggleBtn.style.display = 'none';
+    adminPanel.style.display = 'none';
+  }
+}
+
+function showAdminStatus(message: string, isError: boolean = false): void {
+  adminStatus.textContent = message;
+  adminStatus.className = `admin-status ${isError ? 'error' : 'success'}`;
+  setTimeout(() => {
+    adminStatus.className = 'admin-status';
+  }, 5000);
+}
+
+async function loadConfig(): Promise<void> {
+  try {
+    const resp = await fetch('api/admin/config');
+    const data = await resp.json();
+    
+    if (data.success && data.maskedConfig) {
+      const config = data.maskedConfig;
+      fishApiKeyInput.value = config.fishApiKey;
+      fishModelIdInput.value = config.fishModelId;
+      protonEmailInput.value = config.protonEmail;
+      protonSmtpTokenInput.value = config.protonSmtpToken;
+      googleClientIdInput.value = config.googleClientId;
+      googleClientSecretInput.value = config.googleClientSecret;
+      nodeEnvSelect.value = config.nodeEnv;
+      portInput.value = config.port.toString();
+    }
+  } catch (err) {
+    console.error('Failed to load config:', err);
+    showAdminStatus('Failed to load configuration', true);
+  }
+}
+
+async function saveConfig(): Promise<void> {
+  try {
+    const configData = {
+      fishApiKey: fishApiKeyInput.value.trim() || undefined,
+      fishModelId: fishModelIdInput.value.trim() || undefined,
+      protonEmail: protonEmailInput.value.trim() || undefined,
+      protonSmtpToken: protonSmtpTokenInput.value.trim() || undefined,
+      googleClientId: googleClientIdInput.value.trim() || undefined,
+      googleClientSecret: googleClientSecretInput.value.trim() || undefined,
+      nodeEnv: nodeEnvSelect.value as 'development' | 'production',
+      port: parseInt(portInput.value) || undefined,
+    };
+    
+    // Remove empty values
+    Object.keys(configData).forEach(key => {
+      if (configData[key as keyof typeof configData] === undefined || configData[key as keyof typeof configData] === '') {
+        delete configData[key as keyof typeof configData];
+      }
+    });
+    
+    const resp = await fetch('api/admin/config', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(configData),
+    });
+    
+    const data = await resp.json();
+    
+    if (data.success) {
+      showAdminStatus('Configuration saved successfully!');
+      loadConfig(); // Reload to show masked values
+    } else {
+      showAdminStatus(data.error || 'Failed to save configuration', true);
+    }
+  } catch (err) {
+    console.error('Failed to save config:', err);
+    showAdminStatus('Failed to save configuration', true);
+  }
+}
+
+async function loadWhitelist(): Promise<void> {
+  try {
+    const resp = await fetch('api/admin/config');
+    const data = await resp.json();
+    
+    if (data.success && data.maskedConfig) {
+      const emails = data.maskedConfig.emailWhitelist || [];
+      whitelistContainer.innerHTML = '';
+      
+      if (emails.length === 0) {
+        whitelistContainer.innerHTML = '<p style="color: #6c757d; text-align: center;">No emails in whitelist</p>';
+        return;
+      }
+      
+      emails.forEach((email: string) => {
+        const item = document.createElement('div');
+        item.className = 'whitelist-item';
+        
+        const emailSpan = document.createElement('span');
+        emailSpan.className = 'whitelist-email';
+        emailSpan.textContent = email;
+        
+        const removeBtn = document.createElement('button');
+        removeBtn.className = 'remove-email-btn';
+        removeBtn.textContent = 'Remove';
+        
+        // Check if this is the admin email (maurice@tamman.org)
+        const isAdminEmail = email.toLowerCase() === 'maurice@tamman.org';
+        if (isAdminEmail) {
+          emailSpan.classList.add('whitelist-admin');
+          emailSpan.title = 'Admin email (cannot be removed)';
+          removeBtn.disabled = true;
+          removeBtn.textContent = 'Admin';
+        } else {
+          removeBtn.addEventListener('click', () => removeEmailFromWhitelist(email));
+        }
+        
+        item.appendChild(emailSpan);
+        item.appendChild(removeBtn);
+        whitelistContainer.appendChild(item);
+      });
+    }
+  } catch (err) {
+    console.error('Failed to load whitelist:', err);
+    showAdminStatus('Failed to load email whitelist', true);
+  }
+}
+
+async function addEmailToWhitelist(): Promise<void> {
+  const email = newWhitelistEmail.value.trim().toLowerCase();
+  
+  if (!email) {
+    showAdminStatus('Please enter an email address', true);
+    return;
+  }
+  
+  const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+  if (!emailRegex.test(email)) {
+    showAdminStatus('Please enter a valid email address', true);
+    return;
+  }
+  
+  try {
+    const resp = await fetch('api/admin/whitelist/add', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ email }),
+    });
+    
+    const data = await resp.json();
+    
+    if (data.success) {
+      showAdminStatus(data.message || 'Email added to whitelist successfully!');
+      newWhitelistEmail.value = '';
+      loadWhitelist();
+    } else {
+      showAdminStatus(data.error || 'Failed to add email to whitelist', true);
+    }
+  } catch (err) {
+    console.error('Failed to add email to whitelist:', err);
+    showAdminStatus('Failed to add email to whitelist', true);
+  }
+}
+
+async function removeEmailFromWhitelist(email: string): Promise<void> {
+  if (!confirm(`Remove ${email} from whitelist?`)) {
+    return;
+  }
+  
+  try {
+    const resp = await fetch(`api/admin/whitelist/${encodeURIComponent(email)}`, {
+      method: 'DELETE',
+    });
+    
+    const data = await resp.json();
+    
+    if (data.success) {
+      showAdminStatus(data.message || 'Email removed from whitelist successfully!');
+      loadWhitelist();
+    } else {
+      showAdminStatus(data.error || 'Failed to remove email from whitelist', true);
+    }
+  } catch (err) {
+    console.error('Failed to remove email from whitelist:', err);
+    showAdminStatus('Failed to remove email from whitelist', true);
+  }
 }
 
 async function loadAutofill(showLoadingIndicator: boolean = false): Promise<void> {
@@ -1438,6 +1693,9 @@ async function doSpeak(forcedText?: string): Promise<void> {
 }
 
 // Authentication Event Bindings
+googleSignInBtn.addEventListener('click', () => {
+  window.location.href = 'auth/google';
+});
 requestCodeBtn.addEventListener('click', requestVerificationCode);
 verifyCodeBtn.addEventListener('click', verifyCode);
 logoutBtn.addEventListener('click', logout);
@@ -1483,6 +1741,56 @@ newPhraseInput.addEventListener('keydown', (e) => {
 window.addEventListener('focus', () => {
   if (isAuthenticated) {
     loadAutofill(true); // Show indicator when returning to app
+  }
+});
+
+// Admin Panel Event Bindings
+adminToggleBtn.addEventListener('click', () => {
+  const isVisible = adminPanel.style.display !== 'none' && adminPanel.style.display !== '';
+  adminPanel.style.display = isVisible ? 'none' : 'block';
+});
+
+// Keep the old toggle button working too (inside the admin panel)
+toggleAdminPanel.addEventListener('click', () => {
+  adminPanel.style.display = 'none';
+});
+
+// Admin tab switching
+adminTabs.forEach(tab => {
+  tab.addEventListener('click', () => {
+    // Remove active class from all tabs and contents
+    adminTabs.forEach(t => t.classList.remove('active'));
+    adminTabContents.forEach(content => content.classList.remove('active'));
+    
+    // Add active class to clicked tab
+    tab.classList.add('active');
+    
+    // Show corresponding content
+    const tabId = tab.getAttribute('data-tab');
+    if (tabId) {
+      const tabContent = document.getElementById(`${tabId}Tab`);
+      if (tabContent) {
+        tabContent.classList.add('active');
+      }
+    }
+  });
+});
+
+// Configuration form event handlers
+configForm.addEventListener('submit', (e) => {
+  e.preventDefault();
+  saveConfig();
+});
+
+loadConfigBtn.addEventListener('click', loadConfig);
+
+// Email whitelist event handlers  
+addEmailBtn.addEventListener('click', addEmailToWhitelist);
+
+newWhitelistEmail.addEventListener('keydown', (e) => {
+  if (e.key === 'Enter') {
+    e.preventDefault();
+    addEmailToWhitelist();
   }
 });
 

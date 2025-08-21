@@ -59,6 +59,9 @@ export interface UserSession {
     authenticated: boolean;
     email: string;
     sessionId: string;
+    authMethod?: 'email' | 'google';
+    googleId?: string;
+    name?: string;
 }
 export interface CombinedAudioRequest {
     text: string;
@@ -67,11 +70,54 @@ export interface CombinedAudioResponse {
     exists: boolean;
     hash?: string;
 }
+export interface ConfigurationRequest {
+    fishApiKey?: string;
+    fishModelId?: string;
+    protonEmail?: string;
+    protonSmtpToken?: string;
+    googleClientId?: string;
+    googleClientSecret?: string;
+    sessionSecret?: string;
+    nodeEnv?: string;
+    port?: number;
+    emailWhitelist?: string[];
+}
+export interface ConfigurationResponse {
+    success: boolean;
+    config?: {
+        fishApiKey: string;
+        fishModelId: string;
+        protonEmail: string;
+        protonSmtpToken: string;
+        googleClientId: string;
+        googleClientSecret: string;
+        sessionSecret: string;
+        nodeEnv: string;
+        port: number;
+        emailWhitelist: string[];
+    };
+    maskedConfig?: {
+        fishApiKey: string;
+        fishModelId: string;
+        protonEmail: string;
+        protonSmtpToken: string;
+        googleClientId: string;
+        googleClientSecret: string;
+        sessionSecret: string;
+        nodeEnv: string;
+        port: number;
+        emailWhitelist: string[];
+    };
+    error?: string;
+}
 declare module 'express-session' {
     interface SessionData {
         authenticated?: boolean;
         email?: string;
         sessionId?: string;
+        authMethod?: 'email' | 'google';
+        googleId?: string;
+        name?: string;
     }
 }
 //# sourceMappingURL=types.d.ts.map

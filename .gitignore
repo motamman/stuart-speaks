@@ -18,6 +18,10 @@ cache/
 uploads/
 logs/
 
+# Configuration files with sensitive data
+config/
+*.corrupted.*
+
 # Legacy JavaScript files (now converted to TypeScript)
 server.js
 public/app.js
