@@ -1,6 +1,6 @@
 # Stuart Speaks - Text-to-Speech Backend
 
-A Node.js Express application providing intelligent text-to-speech functionality using Fish.Audio API with email authentication and smart chunking.
+A Node.js TypeScript application providing intelligent text-to-speech functionality using Fish.Audio API with hybrid authentication (Google OAuth + email fallback), admin configuration interface, and email whitelist security.
 
 ## Local Development Setup
 
@@ -8,15 +8,22 @@ A Node.js Express application providing intelligent text-to-speech functionality
 - Node.js 18+
 - ProtonMail Business/Family account with custom domain
 - Fish.Audio API account
+- Google Cloud Console project (for OAuth)
 
 ### Setup Steps
 
-1. **Install dependencies**:
+1. **Install dependencies and run interactive setup**:
    ```bash
    npm install
+   # Interactive setup will run automatically and prompt for admin email
    ```
 
-2. **Configure environment**:
+   Or run setup manually:
+   ```bash
+   npm run setup
+   ```
+
+2. **Alternative: Manual configuration**:
    ```bash
    cp .env.example .env
    ```
@@ -28,33 +35,57 @@ A Node.js Express application providing intelligent text-to-speech functionality
    PROTON_EMAIL=your_email@domain.com
    PROTON_SMTP_TOKEN=your_smtp_token_here
    SESSION_SECRET=generate_random_32_byte_hex_string
+   GOOGLE_CLIENT_ID=your_google_oauth_client_id
+   GOOGLE_CLIENT_SECRET=your_google_oauth_client_secret
+   CONFIG_ENCRYPTION_KEY=generate_another_random_32_byte_hex_string
+   ADMIN_EMAIL=your_admin_email@domain.com
    NODE_ENV=development
    ```
 
-3. **Generate session secret**:
+3. **Generate secrets**:
    ```bash
-   node -e "console.log(require('crypto').randomBytes(32).toString('hex'))"
+   # Generate SESSION_SECRET
+   node -e "console.log('SESSION_SECRET=' + require('crypto').randomBytes(32).toString('hex'))"
+   
+   # Generate CONFIG_ENCRYPTION_KEY  
+   node -e "console.log('CONFIG_ENCRYPTION_KEY=' + require('crypto').randomBytes(32).toString('hex'))"
    ```
 
-4. **Start server**:
+4. **Configure Google OAuth** (optional but recommended):
+   - Go to [Google Cloud Console](https://console.cloud.google.com/)
+   - Create/select project → APIs & Services → Credentials
+   - Create OAuth 2.0 Client ID for Web application
+   - Add authorized redirect URI: `http://localhost:3003/stuartvoice/auth/google/callback`
+   - Copy Client ID and Secret to `.env`
+
+5. **Start development server**:
    ```bash
-   npm start
+   npm run dev
    ```
 
-5. **Access application**:
-   - App: http://localhost:3002/stuartvoice/
-   - Health check: http://localhost:3002/stuartvoice/ping
+6. **Access application**:
+   - App: http://localhost:3003/stuartvoice/
+   - Health check: http://localhost:3003/stuartvoice/ping
 
 ### Development Commands
 ```bash
-npm start          # Start server
-npm run dev        # Start with auto-restart
+npm run dev        # Start with TypeScript compilation and auto-restart
+npm run build      # Compile TypeScript to JavaScript
+npm start          # Start compiled server (production mode)
 ```
 
+### Admin Configuration
+Once logged in with admin email (set via `ADMIN_EMAIL` in `.env`):
+- Click the gear (⚙️) button in top-right corner
+- **Environment Config tab**: Set API keys and credentials via web interface
+- **Email Whitelist tab**: Manage authorized user emails
+- Configuration is encrypted and persisted across server restarts
+
 ### Troubleshooting
-- **Authentication issues**: Check SMTP settings, use "123456" for dev bypass
-- **TTS errors**: Verify Fish.Audio API key and model ID
-- **Health check**: `curl http://localhost:3002/stuartvoice/ping`
+- **Authentication issues**: Check SMTP settings or use Google OAuth
+- **TTS errors**: Verify Fish.Audio API key and model ID in admin panel
+- **Config corruption**: Check that `CONFIG_ENCRYPTION_KEY` is persistent in `.env`
+- **Health check**: `curl http://localhost:3003/stuartvoice/ping`
 
 ## Server Deployment
 
@@ -158,8 +189,10 @@ npm run dev        # Start with auto-restart
 ## API Endpoints
 
 ### Authentication
-- `POST /stuartvoice/api/auth/request-code` - Request verification code
-- `POST /stuartvoice/api/auth/verify-code` - Verify code and login
+- `POST /stuartvoice/api/auth/request-code` - Request verification code (email auth)
+- `POST /stuartvoice/api/auth/verify-code` - Verify code and login (email auth)
+- `GET /stuartvoice/auth/google` - Initiate Google OAuth flow
+- `GET /stuartvoice/auth/google/callback` - Google OAuth callback
 - `POST /stuartvoice/api/auth/logout` - Logout user
 - `GET /stuartvoice/api/auth/status` - Check authentication status
 
@@ -173,6 +206,32 @@ npm run dev        # Start with auto-restart
 - `POST /stuartvoice/api/phrases` - Add phrase or reset/clear all
 - `DELETE /stuartvoice/api/phrases/:phrase` - Delete specific phrase
 
+### Admin Configuration (Admin Only)
+- `GET /stuartvoice/api/config` - Get masked configuration
+- `POST /stuartvoice/api/config` - Save configuration
+- `GET /stuartvoice/api/whitelist` - Get email whitelist
+- `POST /stuartvoice/api/whitelist` - Add email to whitelist
+- `DELETE /stuartvoice/api/whitelist/:email` - Remove email from whitelist
+
 ### Utility
 - `GET /stuartvoice/ping` - Health check
 - `GET /stuartvoice/share/:shareId` - Public audio sharing
+
+## Features
+
+### Authentication & Security
+- **Hybrid Authentication**: Google OAuth (primary) + email verification (fallback)
+- **Email Whitelist**: Admin-controlled access with persistent storage
+- **Session Management**: Secure file-based sessions with 30-day expiration
+
+### Admin Interface
+- **Web-based Configuration**: Set environment variables via admin panel
+- **Encrypted Storage**: All sensitive config data encrypted with persistent keys
+- **Email Whitelist Management**: Add/remove authorized users
+- **Admin-only Access**: Hardcoded admin email with special privileges
+
+### Text-to-Speech
+- **Fish.Audio Integration**: High-quality voice synthesis
+- **Smart Chunking**: Automatic text splitting for optimal audio quality
+- **Audio Caching**: Efficient storage and retrieval of generated speech
+- **Combined Audio**: Seamless concatenation of multiple audio segments

@@ -19,11 +19,44 @@ interface StoredConfig {
 
 const CONFIG_FILE = path.join(process.cwd(), 'config', 'app-config.json');
 const WHITELIST_FILE = path.join(process.cwd(), 'config', 'email-whitelist.json');
+const ENCRYPTION_KEY_FILE = path.join(process.cwd(), 'config', 'encryption.key');
 const CONFIG_DIR = path.dirname(CONFIG_FILE);
-const ENCRYPTION_KEY = process.env.CONFIG_ENCRYPTION_KEY || crypto.randomBytes(32).toString('hex');
 
-// Hardcoded admin email (always in whitelist)
-const ADMIN_EMAIL = 'maurice@tamman.org';
+// Get or create persistent encryption key
+function getEncryptionKey(): string {
+  try {
+    if (fs.existsSync(ENCRYPTION_KEY_FILE)) {
+      return fs.readFileSync(ENCRYPTION_KEY_FILE, 'utf8').trim();
+    }
+  } catch (error) {
+    console.warn('Failed to read encryption key file:', error);
+  }
+  
+  // Generate new key and save it
+  const newKey = crypto.randomBytes(32).toString('hex');
+  try {
+    fs.writeFileSync(ENCRYPTION_KEY_FILE, newKey);
+    console.log('Generated new encryption key and saved to config/encryption.key');
+    return newKey;
+  } catch (error) {
+    console.error('Failed to save encryption key:', error);
+    return newKey; // Use in memory only as fallback
+  }
+}
+
+const ENCRYPTION_KEY = getEncryptionKey();
+
+// Admin email from environment (required)
+const ADMIN_EMAIL = process.env.ADMIN_EMAIL;
+
+if (!ADMIN_EMAIL) {
+  console.error('❌ ADMIN_EMAIL environment variable is required!');
+  console.error('📝 Run "npm run setup" to configure your admin email.');
+  process.exit(1);
+}
+
+// TypeScript assertion: ADMIN_EMAIL is guaranteed to be defined after the check above
+const VERIFIED_ADMIN_EMAIL: string = ADMIN_EMAIL;
 
 // Create config directory if it doesn't exist
 if (!fs.existsSync(CONFIG_DIR)) {
@@ -158,9 +191,9 @@ export function isEmailWhitelisted(email: string): boolean {
   return whitelist.includes(email.toLowerCase());
 }
 
-// Check if user is admin (hardcoded admin email)
+// Check if user is admin (configured admin email)
 export function isAdminEmail(email: string): boolean {
-  return email.toLowerCase() === ADMIN_EMAIL.toLowerCase();
+  return email.toLowerCase() === VERIFIED_ADMIN_EMAIL.toLowerCase();
 }
 
 // Separate whitelist management (independent of main config)
@@ -168,10 +201,10 @@ function loadWhitelist(): string[] {
   try {
     if (fs.existsSync(WHITELIST_FILE)) {
       const whitelistData = JSON.parse(fs.readFileSync(WHITELIST_FILE, 'utf8'));
-      const emails = Array.isArray(whitelistData.emails) ? whitelistData.emails : [ADMIN_EMAIL];
+      const emails = Array.isArray(whitelistData.emails) ? whitelistData.emails : [VERIFIED_ADMIN_EMAIL];
       // Always ensure admin email is included
-      if (!emails.includes(ADMIN_EMAIL)) {
-        emails.unshift(ADMIN_EMAIL);
+      if (!emails.includes(VERIFIED_ADMIN_EMAIL)) {
+        emails.unshift(VERIFIED_ADMIN_EMAIL);
       }
       return emails;
     }
@@ -179,13 +212,13 @@ function loadWhitelist(): string[] {
     console.error('Error loading whitelist file:', error);
   }
   
-  return [ADMIN_EMAIL]; // Default to just admin email
+  return [VERIFIED_ADMIN_EMAIL]; // Default to just admin email
 }
 
 function saveWhitelist(emails: string[]): boolean {
   try {
     // Always ensure admin email is included
-    const emailsWithAdmin = [...new Set([ADMIN_EMAIL, ...emails])];
+    const emailsWithAdmin = [...new Set([VERIFIED_ADMIN_EMAIL, ...emails])];
     const whitelistData = {
       emails: emailsWithAdmin,
       lastUpdated: new Date().toISOString(),
@@ -222,7 +255,7 @@ export function addToWhitelist(email: string): boolean {
 }
 
 export function removeFromWhitelist(email: string): boolean {
-  if (email.toLowerCase() === ADMIN_EMAIL.toLowerCase()) {
+  if (email.toLowerCase() === VERIFIED_ADMIN_EMAIL.toLowerCase()) {
     return false; // Cannot remove admin
   }
   
