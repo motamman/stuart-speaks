@@ -10,7 +10,6 @@
     "build:watch": "tsc --watch",
     "clean": "rm -rf dist",
     "prebuild": "npm run clean",
-    "setup-dev": "./setup-local-dev.sh",
     "lint": "eslint src/ public/ --ext .ts",
     "lint:fix": "eslint src/ public/ --ext .ts --fix",
     "format": "prettier --write \"src/**/*.ts\" \"public/**/*.ts\"",

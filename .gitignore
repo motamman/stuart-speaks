@@ -17,6 +17,7 @@ sessions/
 cache/
 uploads/
 logs/
+cache/*
 
 # Configuration files with sensitive data
 config/
