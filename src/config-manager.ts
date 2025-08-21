@@ -146,10 +146,29 @@ export function loadConfig(): StoredConfig {
 }
 
 // Save configuration to file with encryption
+// Helper function to check if a value is masked (contains ****)
+function isMaskedValue(value: string): boolean {
+  return value.includes('****');
+}
+
 export function saveConfig(config: Partial<StoredConfig>): boolean {
   try {
     const currentConfig = loadConfig();
-    const updatedConfig: StoredConfig = { ...currentConfig, ...config };
+    const updatedConfig: StoredConfig = { ...currentConfig };
+    
+    // Only update fields that are not masked values
+    Object.keys(config).forEach(key => {
+      const value = config[key as keyof StoredConfig];
+      if (value !== undefined) {
+        if (typeof value === 'string' && isMaskedValue(value)) {
+          // Skip masked values - keep the current value
+          console.log(`🔒 Skipping masked value for ${key}, keeping current value`);
+        } else {
+          // Update with the new value
+          (updatedConfig as any)[key] = value;
+        }
+      }
+    });
     
     // Create encrypted version for storage
     const configToStore: StoredConfig = { ...updatedConfig };
