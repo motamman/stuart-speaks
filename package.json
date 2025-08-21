@@ -10,13 +10,14 @@
     "build:watch": "tsc --watch",
     "clean": "rm -rf dist",
     "prebuild": "npm run clean",
-    "setup-dev": "./setup-local-dev.sh",
     "lint": "eslint src/ public/ --ext .ts",
     "lint:fix": "eslint src/ public/ --ext .ts --fix",
     "format": "prettier --write \"src/**/*.ts\" \"public/**/*.ts\"",
     "format:check": "prettier --check \"src/**/*.ts\" \"public/**/*.ts\"",
     "ci": "npm run format:check && npm run lint && npm run build",
-    "test": "echo \"Error: no test specified\" && exit 1"
+    "test": "echo \"Error: no test specified\" && exit 1",
+    "setup": "node setup.js",
+    "postinstall": "[ ! -f .env ] && node setup.js || true"
   },
   "keywords": [],
   "author": "",
@@ -24,12 +25,16 @@
   "description": "",
   "dependencies": {
     "@msgpack/msgpack": "^3.1.2",
+    "@types/passport": "^1.0.17",
+    "@types/passport-google-oauth20": "^2.0.16",
     "dotenv": "^16.5.0",
     "express": "^5.1.0",
     "express-session": "^1.18.1",
     "multer": "^2.0.2",
     "node-fetch": "^2.7.0",
     "nodemailer": "^7.0.3",
+    "passport": "^0.7.0",
+    "passport-google-oauth20": "^2.0.0",
     "session-file-store": "^1.5.0",
     "uuid": "^11.1.0",
     "ws": "^8.18.0"

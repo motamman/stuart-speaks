@@ -12,6 +12,8 @@ import fs from 'fs';
 import multer from 'multer';
 import WebSocket from 'ws';
 import * as msgpack from '@msgpack/msgpack';
+import passport from 'passport';
+import { Strategy as GoogleStrategy } from 'passport-google-oauth20';
 
 import {
   FishAudioMessage,
@@ -26,7 +28,21 @@ import {
   UserSession,
   CombinedAudioRequest,
   CombinedAudioResponse,
+  ConfigurationRequest,
+  ConfigurationResponse,
 } from './types';
+
+import {
+  loadConfig,
+  saveConfig,
+  getMaskedConfig,
+  isEmailWhitelisted,
+  isAdminEmail,
+  updateEnvironmentFromConfig,
+  getEmailWhitelist,
+  addToWhitelist,
+  removeFromWhitelist,
+} from './config-manager';
 
 const FileStoreSession = FileStore(session);
 
@@ -34,7 +50,7 @@ const app = express();
 const PORT = process.env.PORT || 3003;
 
 // Determine base path: serve under /stuartvoice for both development and production
-const DEV_BASE = '/stuart-test'; // Change this to "/stuartvoice" in production if needed
+const DEV_BASE = '/stuartvoice';
 
 // Helper to prefix routes with the base path
 const withBase = (route: string): string => DEV_BASE + route;
@@ -49,7 +65,10 @@ const upload = multer({
 });
 
 // Project root path - works in both dev (src/) and production (dist/src/)
-const PROJECT_ROOT = path.resolve(__dirname, '../..');
+const PROJECT_ROOT =
+  process.env.NODE_ENV === 'development'
+    ? path.resolve(__dirname, '..')
+    : path.resolve(__dirname, '../..');
 
 // Ensure combined audio cache directory exists
 const COMBINED_CACHE_DIR = path.join(PROJECT_ROOT, 'cache', 'combined');
@@ -81,6 +100,48 @@ app.use(
     },
   })
 );
+
+// Passport configuration
+app.use(passport.initialize());
+app.use(passport.session());
+
+// Passport serialization
+passport.serializeUser((user: any, done) => {
+  done(null, user);
+});
+
+passport.deserializeUser((user: any, done) => {
+  done(null, user);
+});
+
+// Google OAuth Strategy
+if (process.env.GOOGLE_CLIENT_ID && process.env.GOOGLE_CLIENT_SECRET) {
+  passport.use(
+    new GoogleStrategy(
+      {
+        clientID: process.env.GOOGLE_CLIENT_ID,
+        clientSecret: process.env.GOOGLE_CLIENT_SECRET,
+        callbackURL: `${DEV_BASE}/auth/google/callback`,
+      },
+      async (accessToken, refreshToken, profile, done) => {
+        const email = profile.emails?.[0]?.value || '';
+
+        // Check if email is whitelisted
+        if (!isEmailWhitelisted(email)) {
+          return done(null, false, { message: 'Email not authorized' });
+        }
+
+        const user = {
+          googleId: profile.id,
+          email: email,
+          name: profile.displayName,
+          authMethod: 'google' as const,
+        };
+        return done(null, user);
+      }
+    )
+  );
+}
 
 // Email configuration
 const transporter = nodemailer.createTransport({
@@ -146,6 +207,10 @@ try {
     "What don't you understand about that?",
   ];
 }
+
+// Initialize configuration and update environment variables
+updateEnvironmentFromConfig();
+console.log('Configuration loaded and environment variables updated');
 
 // Cache management functions
 function getUserCacheDir(email: string) {
@@ -303,6 +368,24 @@ function cleanExpiredCodes(): void {
 // Authentication middleware
 function requireAuth(req: Request, res: Response, next: NextFunction): void {
   if (req.session.authenticated && req.session.email) {
+    // Check if email is whitelisted
+    if (!isEmailWhitelisted(req.session.email)) {
+      res.status(403).json({ error: 'Access denied: Email not whitelisted' });
+      return;
+    }
+    return next();
+  }
+  res.status(401).json({ error: 'Authentication required' });
+  return;
+}
+
+function requireAdmin(req: Request, res: Response, next: NextFunction): void {
+  if (req.session.authenticated && req.session.email) {
+    // Check if user is admin
+    if (!isAdminEmail(req.session.email)) {
+      res.status(403).json({ error: 'Access denied: Admin privileges required' });
+      return;
+    }
     return next();
   }
   res.status(401).json({ error: 'Authentication required' });
@@ -439,6 +522,16 @@ app.post(
       return;
     }
 
+    // Check if email is whitelisted before sending verification code
+    if (!isEmailWhitelisted(email)) {
+      res.status(403).json({
+        success: false,
+        message: 'Access denied. Email not authorized.',
+        error: 'Email not whitelisted',
+      });
+      return;
+    }
+
     try {
       // Clean expired codes
       cleanExpiredCodes();
@@ -488,6 +581,16 @@ app.post(
         success: false,
         message: 'Email and code required',
         error: 'Email and code required',
+      });
+      return;
+    }
+
+    // Double-check email is whitelisted before verification
+    if (!isEmailWhitelisted(email)) {
+      res.status(403).json({
+        success: false,
+        message: 'Access denied. Email not authorized.',
+        error: 'Email not whitelisted',
       });
       return;
     }
@@ -580,8 +683,38 @@ app.get(withBase('/api/auth/status'), (req: Request, res: Response) => {
   res.json({
     authenticated: !!req.session.authenticated,
     email: req.session.email || null,
+    authMethod: req.session.authMethod || null,
+    name: req.session.name || null,
   });
 });
+
+// Google OAuth routes
+app.get(withBase('/auth/google'), passport.authenticate('google', { scope: ['profile', 'email'] }));
+
+app.get(
+  withBase('/auth/google/callback'),
+  passport.authenticate('google', { failureRedirect: withBase('/?error=email_not_authorized') }),
+  (req: Request, res: Response) => {
+    // Successful authentication
+    const user = req.user as any;
+    if (user && user.email) {
+      req.session.authenticated = true;
+      req.session.email = user.email;
+      req.session.authMethod = 'google';
+      req.session.googleId = user.googleId;
+      req.session.name = user.name;
+      req.session.sessionId = uuidv4();
+
+      // Load user cache
+      loadUserCache(user.email, req.session.sessionId);
+
+      // Redirect to app
+      res.redirect(withBase('/'));
+    } else {
+      res.redirect(withBase('/?error=no_email'));
+    }
+  }
+);
 
 // TTS proxy endpoint with WebSocket support
 app.post(
@@ -894,6 +1027,193 @@ app.delete(
   }
 );
 
+// Configuration management endpoints (admin only)
+app.get(
+  withBase('/api/admin/config'),
+  requireAdmin,
+  (req: Request, res: Response<ConfigurationResponse>) => {
+    try {
+      const maskedConfig = getMaskedConfig();
+      res.json({
+        success: true,
+        maskedConfig: {
+          fishApiKey: maskedConfig.fishApiKey || '',
+          fishModelId: maskedConfig.fishModelId || '',
+          protonEmail: maskedConfig.protonEmail || '',
+          protonSmtpToken: maskedConfig.protonSmtpToken || '',
+          googleClientId: maskedConfig.googleClientId || '',
+          googleClientSecret: maskedConfig.googleClientSecret || '',
+          sessionSecret: maskedConfig.sessionSecret || '',
+          nodeEnv: maskedConfig.nodeEnv || 'development',
+          port: maskedConfig.port || 3003,
+          emailWhitelist: getEmailWhitelist(),
+        },
+      });
+    } catch (error) {
+      console.error('Error loading config:', error);
+      res.status(500).json({
+        success: false,
+        error: 'Failed to load configuration',
+      });
+    }
+  }
+);
+
+app.post(
+  withBase('/api/admin/config'),
+  requireAdmin,
+  (
+    req: Request<{}, ConfigurationResponse, ConfigurationRequest>,
+    res: Response<ConfigurationResponse>
+  ) => {
+    try {
+      const config = req.body;
+
+      // Validate required fields
+      if (config.port && (config.port < 1000 || config.port > 65535)) {
+        return res.status(400).json({
+          success: false,
+          error: 'Port must be between 1000 and 65535',
+        });
+      }
+
+      // Validate email whitelist
+      if (config.emailWhitelist) {
+        const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+        for (const email of config.emailWhitelist) {
+          if (!emailRegex.test(email)) {
+            return res.status(400).json({
+              success: false,
+              error: `Invalid email address: ${email}`,
+            });
+          }
+        }
+      }
+
+      // Save configuration
+      const saved = saveConfig(config);
+      if (saved) {
+        // Update environment variables for immediate effect
+        updateEnvironmentFromConfig();
+
+        const maskedConfig = getMaskedConfig();
+        res.json({
+          success: true,
+          maskedConfig: {
+            fishApiKey: maskedConfig.fishApiKey || '',
+            fishModelId: maskedConfig.fishModelId || '',
+            protonEmail: maskedConfig.protonEmail || '',
+            protonSmtpToken: maskedConfig.protonSmtpToken || '',
+            googleClientId: maskedConfig.googleClientId || '',
+            googleClientSecret: maskedConfig.googleClientSecret || '',
+            sessionSecret: maskedConfig.sessionSecret || '',
+            nodeEnv: maskedConfig.nodeEnv || 'development',
+            port: maskedConfig.port || 3003,
+            emailWhitelist: getEmailWhitelist(),
+          },
+        });
+      } else {
+        res.status(500).json({
+          success: false,
+          error: 'Failed to save configuration',
+        });
+      }
+    } catch (error) {
+      console.error('Error saving config:', error);
+      res.status(500).json({
+        success: false,
+        error: 'Failed to save configuration',
+      });
+    }
+  }
+);
+
+// Email whitelist management endpoints (admin only)
+app.post(withBase('/api/admin/whitelist/add'), requireAdmin, (req: Request, res: Response) => {
+  try {
+    const { email } = req.body;
+
+    if (!email || typeof email !== 'string') {
+      return res.status(400).json({
+        success: false,
+        error: 'Email is required',
+      });
+    }
+
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    if (!emailRegex.test(email)) {
+      return res.status(400).json({
+        success: false,
+        error: 'Invalid email address',
+      });
+    }
+
+    // Use new separate whitelist system
+    const success = addToWhitelist(email);
+    if (success) {
+      res.json({
+        success: true,
+        emailWhitelist: getEmailWhitelist(),
+        message: 'Email added to whitelist successfully',
+      });
+    } else {
+      res.status(500).json({
+        success: false,
+        error: 'Failed to add email to whitelist',
+      });
+    }
+  } catch (error) {
+    console.error('Error adding email to whitelist:', error);
+    res.status(500).json({
+      success: false,
+      error: 'Failed to add email to whitelist',
+    });
+  }
+});
+
+app.delete(withBase('/api/admin/whitelist/:email'), requireAdmin, (req: Request, res: Response) => {
+  try {
+    const email = req.params.email.toLowerCase();
+
+    // Prevent removing admin email
+    if (isAdminEmail(email)) {
+      return res.status(400).json({
+        success: false,
+        error: 'Cannot remove admin email from whitelist',
+      });
+    }
+
+    // Use new separate whitelist system
+    const success = removeFromWhitelist(email);
+    if (success) {
+      res.json({
+        success: true,
+        emailWhitelist: getEmailWhitelist(),
+        message: 'Email removed from whitelist successfully',
+      });
+    } else {
+      res.status(400).json({
+        success: false,
+        error: 'Cannot remove admin email or email not found',
+      });
+    }
+  } catch (error) {
+    console.error('Error removing email from whitelist:', error);
+    res.status(500).json({
+      success: false,
+      error: 'Failed to remove email from whitelist',
+    });
+  }
+});
+
+// Check if current user is admin
+app.get(withBase('/api/admin/status'), requireAuth, (req: Request, res: Response) => {
+  res.json({
+    isAdmin: isAdminEmail(req.session.email || ''),
+    email: req.session.email,
+  });
+});
+
 // Shared audio endpoint (public - no auth required)
 app.get(withBase('/share/:shareId'), async (req: Request, res: Response) => {
   const shareId = req.params.shareId;
@@ -1070,6 +1390,79 @@ app.post(
   }
 );
 
+// Email whitelist management endpoints
+app.post(withBase('/api/admin/whitelist/add'), requireAdmin, (req: Request, res: Response) => {
+  try {
+    const { email } = req.body;
+
+    if (!email) {
+      return res.status(400).json({
+        success: false,
+        error: 'Email is required',
+      });
+    }
+
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    if (!emailRegex.test(email)) {
+      return res.status(400).json({
+        success: false,
+        error: 'Invalid email format',
+      });
+    }
+
+    const success = addToWhitelist(email);
+    if (success) {
+      res.json({
+        success: true,
+        message: 'Email added to whitelist successfully',
+      });
+    } else {
+      res.status(500).json({
+        success: false,
+        error: 'Failed to add email to whitelist',
+      });
+    }
+  } catch (error) {
+    console.error('Error adding email to whitelist:', error);
+    res.status(500).json({
+      success: false,
+      error: 'Internal server error',
+    });
+  }
+});
+
+app.delete(withBase('/api/admin/whitelist/:email'), requireAdmin, (req: Request, res: Response) => {
+  try {
+    const { email } = req.params;
+
+    if (!email) {
+      return res.status(400).json({
+        success: false,
+        error: 'Email is required',
+      });
+    }
+
+    const success = removeFromWhitelist(decodeURIComponent(email));
+    if (success) {
+      res.json({
+        success: true,
+        message: 'Email removed from whitelist successfully',
+      });
+    } else {
+      res.status(400).json({
+        success: false,
+        error: 'Cannot remove admin email or email not found',
+      });
+    }
+  } catch (error) {
+    console.error('Error removing email from whitelist:', error);
+    res.status(500).json({
+      success: false,
+      error: 'Internal server error',
+    });
+  }
+});
+
 // Serve index.html with dynamic base path
 app.get(withBase('/'), (req: Request, res: Response) => {
   let html = fs.readFileSync(path.join(PROJECT_ROOT, 'public', 'index.html'), 'utf8');
@@ -1079,7 +1472,18 @@ app.get(withBase('/'), (req: Request, res: Response) => {
 
 // Serve templated files with dynamic base path
 app.get(withBase('/app.js'), (req: Request, res: Response) => {
-  let js = fs.readFileSync(path.join(PROJECT_ROOT, 'public', 'app.js'), 'utf8');
+  // In development, prefer compiled version from dist if it exists, otherwise use source
+  const distPath = path.join(PROJECT_ROOT, 'dist', 'public', 'app.js');
+  const srcPath = path.join(PROJECT_ROOT, 'public', 'app.js');
+
+  let jsPath: string;
+  if (process.env.NODE_ENV === 'development' && fs.existsSync(distPath)) {
+    jsPath = distPath;
+  } else {
+    jsPath = srcPath;
+  }
+
+  let js = fs.readFileSync(jsPath, 'utf8');
   js = js.replace(/\/BASE_PATH\//g, DEV_BASE + '/');
   res.setHeader('Content-Type', 'application/javascript');
   res.send(js);
