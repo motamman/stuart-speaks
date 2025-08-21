@@ -17,6 +17,9 @@ sessions/
 cache/
 uploads/
 logs/
+config/*.json
+config/*.key
+
 
 # Legacy JavaScript files (now converted to TypeScript)
 server.js
