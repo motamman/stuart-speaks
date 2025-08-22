@@ -28,7 +28,7 @@ npm run build
 # Start development server
 npm run dev
 
-# Access at http://localhost:3003/stuartvoice/
+# Access at http://localhost:3002/stuartvoice/
 ```
 
 **Note**: The interactive setup will prompt for admin email on first run. For full configuration, see the detailed setup steps below.
@@ -88,7 +88,7 @@ npm run dev
    - Go to [Google Cloud Console](https://console.cloud.google.com/)
    - Create/select project → APIs & Services → Credentials
    - Create OAuth 2.0 Client ID for Web application
-   - Add authorized redirect URI: `http://localhost:3003/stuartvoice/auth/google/callback`
+   - Add authorized redirect URI: `http://localhost:3002/stuartvoice/auth/google/callback`
    - Copy Client ID and Secret to `.env`
 
 5. **Start development server**:
@@ -97,8 +97,8 @@ npm run dev
    ```
 
 6. **Access application**:
-   - App: http://localhost:3003/stuartvoice/
-   - Health check: http://localhost:3003/stuartvoice/ping
+   - App: http://localhost:3002/stuartvoice/
+   - Health check: http://localhost:3002/stuartvoice/ping
 
 ### Development Commands
 ```bash
@@ -118,7 +118,7 @@ Once logged in with admin email (set via `ADMIN_EMAIL` in `.env`):
 - **Authentication issues**: Check SMTP settings or use Google OAuth
 - **TTS errors**: Verify Fish.Audio API key and model ID in admin panel
 - **Config corruption**: Check that `CONFIG_ENCRYPTION_KEY` is persistent in `.env`
-- **Health check**: `curl http://localhost:3003/stuartvoice/ping`
+- **Health check**: `curl http://localhost:3002/stuartvoice/ping`
 
 ## Server Deployment
 
